@@ -1,0 +1,68 @@
+{
+  "name": "Tool CRM",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "start-ui": "vite",
+    "dev": "concurrently \"npm run start-ui\" \"npm run electron:dev\"",
+    "electron:dev": "wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder"
+  },
+  "description": "Tool CRM",
+  "author": "Nguyen Minh Tien",
+  "build": {
+    "appId": "com.tien.mytool",
+    "productName": "Tool CRM",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "win": {
+      "target": "portable",
+      "artifactName": "${productName}.${ext}"
+    },
+    "directories": {
+      "output": "release"
+    },
+    "asar": true
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.16",
+    "axios": "^1.6.0",
+    "electron-is-dev": "^3.0.1",
+    "electron-oauth2": "^3.0.0",
+    "lucide-react": "^1.21.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^6.20.0",
+    "react-select": "^5.10.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@tailwindcss/postcss": "^4.1.16",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.28.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "tailwindcss": "^4.1.16",
+    "vite": "^8.0.4",
+    "wait-on": "^9.0.4"
+  }
+}
