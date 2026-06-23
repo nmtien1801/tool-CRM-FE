@@ -64,7 +64,14 @@ const createWindow = () => {
   const menuTemplate = [
     {
       label: "File",
-      submenu: [{ label: "Thoát", role: "quit" }],
+      submenu: [
+        {
+          label: "Thông báo",
+          click: () => mainWindow.webContents.send("navigate", "/dashboard"),
+        },
+        ,
+        { label: "Thoát", role: "quit" },
+      ],
     },
     {
       label: "Khách hàng",
@@ -94,7 +101,6 @@ const createWindow = () => {
         { label: "Thoát", role: "quit" },
       ],
     },
-
   ];
 
   if (isDev) {

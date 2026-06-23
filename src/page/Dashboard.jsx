@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ImageIcon } from 'lucide-react';
-import { Bell } from 'lucide-react';
+import { Bell, Edit, Trash2 } from 'lucide-react';
 import Select from 'react-select';
+import CustomerDetailModal from './CustomerDetailModal';
 
 // ─── ĐỊNH NGHĨA DANH MỤC LỰA CHỌN (CONSTANTS) ───
 const ECOSYSTEM_OPTIONS = [
@@ -81,7 +82,6 @@ const getPurchaseHistories = (customer) => {
 const normalizeCustomerData = (customer) => {
   const purchaseHistories = getPurchaseHistories(customer);
 
-  // CHUYỂN ĐỔI purchaseCount THÀNH NUMBER ĐỂ KHỚP VỚI INPUT
   let pCount = 0;
   if (customer.purchaseCount !== undefined && customer.purchaseCount !== '') {
     pCount = parseInt(String(customer.purchaseCount).replace(/\D/g, ''), 10) || 0;
@@ -110,7 +110,7 @@ export default function CRMSystem() {
   const [imagePreview, setImagePreview] = useState(null);
   const [showNotiPopup, setShowNotiPopup] = useState(false);
 
-  // ─── STATE QUAN TRỌNG HỆ THỐNG (BẢO LƯU DATA NGUYÊN BẢN) ───
+  // ─── STATE QUAN TRỌNG HỆ THỐNG ───
   const [customers, setCustomers] = useState([
     {
       id: 1,
@@ -315,6 +315,38 @@ export default function CRMSystem() {
     handleClearForm();
   };
 
+  // ─── HÀM XỬ LÝ XÓA ĐƠN HÀNG TRONG LỊCH SỬ ───
+  const handleDeleteHistory = (customerId, historyId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.")) {
+      return;
+    }
+
+    setCustomers(prevCustomers =>
+      prevCustomers.map(cust => {
+        if (cust.id !== customerId) return cust;
+
+        // Lọc bỏ transaction được chọn
+        const updatedHistories = (cust.purchaseHistories || []).filter(h => h.id !== historyId);
+
+        // Tạo chuỗi gộp sản phẩm mới sau khi xóa bớt
+        const updatedProducts = updatedHistories.map(h => h.products).filter(Boolean).join(', ');
+        // Lấy link hóa đơn của đơn còn lại đầu tiên
+        const updatedInvoiceLink = updatedHistories.find(h => h.invoiceLink)?.invoiceLink || '';
+
+        return {
+          ...cust,
+          purchaseHistories: updatedHistories,
+          purchaseCount: updatedHistories.length,
+          products: updatedProducts,
+          invoiceLink: updatedInvoiceLink,
+          purchaseDates: updatedHistories.map(h => h.date).filter(Boolean)
+        };
+      })
+    );
+
+    alert("Đã xóa giao dịch thành công!");
+  };
+
   const handleEditClick = (customer) => {
     setFormData(normalizeCustomerData(customer));
     setEditingId(customer.id);
@@ -507,12 +539,9 @@ export default function CRMSystem() {
                         Nhóm 3: Lịch sử mua hàng & Dịch vụ (Sales History)
                       </h4>
 
-                      {/* Chia Grid làm 2 cột bằng nhau trên màn hình md trở lên */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-
-                        {/* BÊN TRÁI: KHỐI CHỨA 3 Ô NHẬP LIỆU XẾP DỌC */}
+                        {/* BÊN TRÁI */}
                         <div className="space-y-3">
-                          {/* 1. Tổng số lần đã mua hàng */}
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tổng số lần đã mua hàng</label>
                             <input
@@ -526,7 +555,6 @@ export default function CRMSystem() {
                             />
                           </div>
 
-                          {/* 2. Tên sản phẩm */}
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm - dịch vụ đã mua</label>
                             <input
@@ -538,7 +566,6 @@ export default function CRMSystem() {
                             />
                           </div>
 
-                          {/* 3. Ngày mua hàng */}
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
                             <input
@@ -550,13 +577,12 @@ export default function CRMSystem() {
                           </div>
                         </div>
 
-                        {/* BÊN PHẢI: KHỐI CHỨA Ô HÌNH ẢNH HÓA ĐƠN ĐỘC LẬP */}
+                        {/* BÊN PHẢI */}
                         <div className="h-full flex flex-col">
                           <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                             Hóa đơn đầu ra (Click vào ảnh để thay đổi)
                           </label>
 
-                          {/* Tăng chiều cao h-full hoặc cố định h-[178px] để cân bằng với 3 ô nhập bên trái */}
                           <div className="relative w-full h-[174px] bg-white border border-slate-200 hover:border-indigo-400 rounded-xl overflow-hidden shadow-sm transition-all group flex-1">
                             <input
                               type="file"
@@ -573,7 +599,6 @@ export default function CRMSystem() {
                             />
 
                             {formData.invoiceLink && !formData.invoiceLink.endsWith('.pdf') ? (
-                              /* TRƯỜNG HỢP: ĐÃ CÓ ẢNH ĐÍNH KÈM -> PHỦ KÍN Ô NHẬP, CLICK ĐỂ ĐỔI */
                               <label htmlFor="invoice-image-upload" className="block w-full h-full cursor-pointer relative">
                                 <img
                                   src={formData.invoiceLink}
@@ -583,7 +608,6 @@ export default function CRMSystem() {
                                     e.target.style.display = 'none';
                                   }}
                                 />
-                                {/* Lớp phủ hover xuất hiện chữ "Thay đổi ảnh" */}
                                 <div className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                                   <span className="text-white text-xs font-semibold bg-indigo-600 px-3 py-1.5 rounded-xl shadow-md">
                                     Thay đổi hình ảnh
@@ -591,7 +615,6 @@ export default function CRMSystem() {
                                 </div>
                               </label>
                             ) : (
-                              /* TRƯỜNG HỢP: CHƯA CÓ ẢNH HOẶC ĐANG LÀ LINK .PDF GỐC */
                               <label
                                 htmlFor="invoice-image-upload"
                                 className="w-full h-full cursor-pointer flex flex-col items-center justify-center gap-1.5 p-3 text-center bg-slate-50/50 hover:bg-indigo-50/30 transition-colors"
@@ -606,7 +629,6 @@ export default function CRMSystem() {
                               </label>
                             )}
 
-                            {/* Nút xóa nhanh ảnh nằm ở góc phải nếu cần đưa về trạng thái trống */}
                             {formData.invoiceLink && (
                               <button
                                 type="button"
@@ -779,191 +801,35 @@ export default function CRMSystem() {
             </div>
 
             {/* MODAL CHI TIẾT HOẠT ĐỘNG KHÁCH HÀNG */}
-            {detailCustomer && (
-              <div className="fixed inset-0 z-50 bg-slate-900/45 px-4 py-6 flex items-center justify-center">
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[92vh] flex flex-col overflow-hidden">
-
-                  <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
-                        Lịch sử mua hàng: {detailCustomer.fullName}
-                      </h3>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setDetailCustomerId(null)}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition-all"
-                      >
-                        Đóng
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-                      <div className="px-4 py-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
-                        <span className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Chi tiết giao dịch</span>
-                        <div className="text-xs text-slate-500 font-medium">
-                          Tổng số lần giao dịch: <span className="font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded ml-1">lần {detailCustomer.purchaseCount}</span>
-                        </div>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-xs min-w-[1500px]">
-                          <thead>
-                            <tr className="bg-slate-50/70 border-b border-slate-200 font-bold text-slate-600 uppercase tracking-wider text-[10px]">
-                              <th className="px-4 py-3.5 text-center w-12 bg-slate-50/40">STT</th>
-                              <th className="px-4 py-3.5 w-32 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">Ngày giao dịch</th>
-                              <th className="px-4 py-3.5 w-60 bg-indigo-50/20 text-indigo-900">Sản phẩm</th>
-                              <th className="px-4 py-3.5 text-center w-24 bg-indigo-50/20 text-indigo-900">Hóa đơn</th>
-                              <th className="px-4 py-3.5 w-64 border-l border-slate-200 bg-amber-50/20 text-amber-900">Mối quan tâm</th>
-                              <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Quà tặng áp dụng</th>
-                              <th className="px-4 py-3.5 w-48 bg-amber-50/20 text-amber-900">Kênh tiếp cận</th>
-                              <th className="px-4 py-3.5 w-44 border-l border-slate-200 bg-emerald-50/20 text-emerald-900">Nhân sự tư vấn</th>
-                              <th className="px-4 py-3.5 w-44 bg-emerald-50/20 text-emerald-900">Người chăm sóc</th>
-                              <th className="px-4 py-3.5 text-center w-28 border-l border-slate-200 bg-slate-100 text-slate-700">Hành động</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200 bg-white">
-                            {getPurchaseHistories(detailCustomer).filter(h => h.date || h.products || h.invoiceLink).length > 0 ? (
-                              getPurchaseHistories(detailCustomer)
-                                .filter(h => h.date || h.products || h.invoiceLink)
-                                .map((history, index) => (
-                                  <tr key={history.id || index} className="hover:bg-slate-50/40 transition-colors align-top divide-x divide-slate-100">
-                                    <td className="px-4 py-4 font-semibold text-slate-400 text-center">{index + 1}</td>
-                                    <td className="px-4 py-4 font-bold text-slate-900 whitespace-nowrap border-l border-slate-200 bg-indigo-50/5">
-                                      {history.date || '---'}
-                                    </td>
-                                    <td className="px-4 py-4 text-slate-800 font-bold leading-relaxed break-words bg-indigo-50/5">
-                                      {history.products || '---'}
-                                    </td>
-                                    <td className="px-4 py-4 text-center whitespace-nowrap bg-indigo-50/5">
-                                      {history.invoiceLink ? (
-                                        <div className="flex justify-center">
-                                          <a
-                                            href={history.invoiceLink}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="block relative group w-12 h-12 border border-slate-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all"
-                                            title="Nhấp để xem ảnh gốc"
-                                          >
-                                            <img src={history.invoiceLink} alt="Hóa đơn" className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                                              <span className="text-[9px] text-white font-bold uppercase tracking-widest">Xem</span>
-                                            </div>
-                                          </a>
-                                        </div>
-                                      ) : (
-                                        <span className="text-slate-300 italic">Trống</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-4 text-slate-700 font-medium leading-relaxed break-words border-l border-slate-200 bg-amber-50/5">
-                                      {history.issue || detailCustomer.issue || <span className="text-slate-400 italic">Chưa ghi nhận</span>}
-                                    </td>
-                                    <td className="px-4 py-4 text-slate-600 leading-relaxed break-words bg-amber-50/5">
-                                      {history.promotions && history.promotions.length > 0 ? (
-                                        history.promotions.map((p, idx) => (
-                                          <div key={idx} className="mb-1.5 last:mb-0">
-                                            <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-block">{p.event}</span>
-                                          </div>
-                                        ))
-                                      ) : detailCustomer.promotions && detailCustomer.promotions.length > 0 ? (
-                                        detailCustomer.promotions.map((p, idx) => (
-                                          <div key={idx} className="mb-1.5 last:mb-0">
-                                            <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-block">{p.event}</span>
-                                          </div>
-                                        ))
-                                      ) : (
-                                        <span className="text-slate-400 italic">Không áp dụng</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-4 bg-amber-50/5">
-                                      <div className="flex flex-wrap gap-1">
-                                        {history.careMethods && history.careMethods.length > 0 ? (
-                                          history.careMethods.map(m => (
-                                            <span key={m} className="bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold shadow-3xs">{m}</span>
-                                          ))
-                                        ) : detailCustomer.careMethods && detailCustomer.careMethods.length > 0 ? (
-                                          detailCustomer.careMethods.map(m => (
-                                            <span key={m} className="bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold shadow-3xs">{m}</span>
-                                          ))
-                                        ) : (
-                                          <span className="text-slate-300 italic">Trống</span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="px-4 py-4 whitespace-nowrap border-l border-slate-200 bg-emerald-50/5">
-                                      {history.consultant ? (
-                                        <span className="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-md text-[11px]">
-                                          {STAFF_OPTIONS.find(s => s.value === history.consultant)?.label || history.consultant}
-                                        </span>
-                                      ) : detailCustomer.consultant ? (
-                                        <span className="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-md text-[11px]">
-                                          {STAFF_OPTIONS.find(s => s.value === detailCustomer.consultant)?.label || detailCustomer.consultant}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400 italic">Chưa chỉ định</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-4 whitespace-nowrap bg-emerald-50/5">
-                                      {history.careStaff ? (
-                                        <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md text-[11px]">
-                                          {STAFF_OPTIONS.find(s => s.value === history.careStaff)?.label || history.careStaff}
-                                        </span>
-                                      ) : detailCustomer.careStaff ? (
-                                        <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md text-[11px]">
-                                          {STAFF_OPTIONS.find(s => s.value === detailCustomer.careStaff)?.label || detailCustomer.careStaff}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400 italic">Chưa chỉ định</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-4 text-center whitespace-nowrap border-l border-slate-200 bg-slate-50/50">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const targetedFormData = {
-                                            ...detailCustomer,
-                                            singleDate: history.date || '',
-                                            products: history.products || detailCustomer.products,
-                                            invoiceLink: history.invoiceLink || detailCustomer.invoiceLink,
-                                            issue: history.issue || detailCustomer.issue,
-                                            careMethods: (history.careMethods && history.careMethods.length > 0) ? history.careMethods : detailCustomer.careMethods,
-                                            promotions: (history.promotions && history.promotions.length > 0) ? history.promotions : detailCustomer.promotions,
-                                            consultant: history.consultant || detailCustomer.consultant,
-                                            careStaff: history.careStaff || detailCustomer.careStaff
-                                          };
-                                          setFormData(normalizeCustomerData(targetedFormData));
-                                          setEditingId(detailCustomer.id);
-                                          setEditingHistoryId(history.id);
-                                          setDetailCustomerId(null);
-                                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                                        }}
-                                        className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1.5 rounded-lg transition-all shadow-xs text-[11px]"
-                                      >
-                                        Sửa đơn này
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))
-                            ) : (
-                              <tr>
-                                <td colSpan="9" className="text-xs text-slate-400 italic p-6 text-center">Chưa có lịch sử giao dịch phân tách độc lập.</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <CustomerDetailModal
+              customer={detailCustomer}
+              onClose={() => setDetailCustomerId(null)}
+              staffOptions={STAFF_OPTIONS}
+              getPurchaseHistoriesFn={getPurchaseHistories}
+              onDeleteTransaction={(historyId) => handleDeleteHistory(detailCustomer.id, historyId)}
+              onEditTransaction={(history) => {
+                const targetedFormData = {
+                  ...detailCustomer,
+                  singleDate: history.date || '',
+                  products: history.products || detailCustomer.products,
+                  invoiceLink: history.invoiceLink || detailCustomer.invoiceLink,
+                  issue: history.issue || detailCustomer.issue,
+                  careMethods: (history.careMethods && history.careMethods.length > 0) ? history.careMethods : detailCustomer.careMethods,
+                  promotions: (history.promotions && history.promotions.length > 0) ? history.promotions : detailCustomer.promotions,
+                  consultant: history.consultant || detailCustomer.consultant,
+                  careStaff: history.careStaff || detailCustomer.careStaff
+                };
+                setFormData(normalizeCustomerData(targetedFormData));
+                setEditingId(detailCustomer.id);
+                setEditingHistoryId(history.id);
+                setDetailCustomerId(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </>
         )}
 
-        {/* TAB 2: CHĂM SÓC KHÁCH HÀNG (STAFF XỬ LÝ) */}
+        {/* TAB 2: CSM */}
         {currentTab === 1 && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap gap-4 items-center shadow-xs">
