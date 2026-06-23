@@ -67,7 +67,7 @@ const createWindow = () => {
       submenu: [
         {
           label: "Thông báo",
-          click: () => mainWindow.webContents.send("navigate", "/dashboard"),
+          click: () => mainWindow.webContents.send("navigate", "/Notification"),
         },
         ,
         { label: "Thoát", role: "quit" },
@@ -84,7 +84,6 @@ const createWindow = () => {
           label: "Quản lý chăm sóc khách hàng (CSM)",
           click: () => mainWindow.webContents.send("navigate", "/crm"),
         },
-        { label: "Thoát", role: "quit" },
       ],
     },
     {
@@ -98,7 +97,6 @@ const createWindow = () => {
           label: "Quản lý xuất kho",
           click: () => mainWindow.webContents.send("navigate", "/crm"),
         },
-        { label: "Thoát", role: "quit" },
       ],
     },
   ];

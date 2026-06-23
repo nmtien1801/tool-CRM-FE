@@ -5,13 +5,27 @@ import { AuthProvider } from './context/AuthContext';
 import Login from './page/Login';
 import Dashboard from './page/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
-import ImportSheet from './page/ImportSheet';
+import NotificationPage from './page/NotificationPage';
 
 // ─────────────────────────────────────────────
 // Component con — nằm TRONG <Router> nên dùng được useNavigate
 // ─────────────────────────────────────────────
 function AppRoutes() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Lắng nghe event navigate từ Electron menu bar
+    if (window.electronAPI?.onNavigate) {
+      window.electronAPI.onNavigate((path) => {
+        navigate(path);
+      });
+    }
+
+    // Cleanup khi component unmount
+    return () => {
+      window.electronAPI?.removeNavigateListener?.();
+    };
+  }, [navigate]);
 
   return (
     <Routes>
@@ -28,12 +42,12 @@ function AppRoutes() {
         }
       />
 
-      {/* Route Import Sheet */}
+      {/* Route Notification */}
       <Route
-        path="/import-sheet"
+        path="/Notification"
         element={
           <ProtectedRoute>
-            <ImportSheet />
+            <NotificationPage />
           </ProtectedRoute>
         }
       />

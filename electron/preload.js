@@ -1,17 +1,30 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+// Lưu ref listener để có thể removeListener đúng cách
+let navigateListener = null;
+
 contextBridge.exposeInMainWorld("electronAPI", {
-  // Lắp đường ống nhận dữ liệu nhắc sinh nhật từ VPS bắn về giao diện React
-  onBirthdayReminder: (callback) => {
-    const subscription = (event, data) => callback(data);
-    ipcRenderer.on("notify:birthday-today", subscription);
-    return () => ipcRenderer.removeListener("notify:birthday-today", subscription);
-  },
-  
-  // Lắng nghe điều hướng trang từ Menu File hệ thống
+  // ── ĐÃ THÊM: Hàm cầu nối trung gian gửi gói JSON an toàn xuống Main Process ──
+  sendToBackend: (endpoint, body) => ipcRenderer.invoke("call-backend-api", { endpoint, body }),
+
+  // Chọn file video từ máy tính
+  selectVideo: () => ipcRenderer.invoke("select-video"),
+
+  // Lắng nghe navigate từ menu bar (Main process gửi xuống)
   onNavigate: (callback) => {
-    const subscription = (event, path) => callback(path);
-    ipcRenderer.on("navigate", subscription);
-    return () => ipcRenderer.removeListener("navigate", subscription);
-  }
+    // Xóa listener cũ nếu có để tránh duplicate
+    if (navigateListener) {
+      ipcRenderer.removeListener("navigate", navigateListener);
+    }
+    navigateListener = (_event, path) => callback(path);
+    ipcRenderer.on("navigate", navigateListener);
+  },
+
+  // Cleanup navigate listener (gọi trong useEffect cleanup)
+  removeNavigateListener: () => {
+    if (navigateListener) {
+      ipcRenderer.removeListener("navigate", navigateListener);
+      navigateListener = null;
+    }
+  },
 });
