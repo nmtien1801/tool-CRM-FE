@@ -64,18 +64,37 @@ const createWindow = () => {
   const menuTemplate = [
     {
       label: "File",
+      submenu: [{ label: "Thoát", role: "quit" }],
+    },
+    {
+      label: "Khách hàng",
       submenu: [
         {
-          label: "Trang chủ / Dashboard",
+          label: "Quản lý khách hàng (CMR)",
           click: () => mainWindow.webContents.send("navigate", "/dashboard"),
         },
         {
-          label: "Hệ thống quản trị CRM",
+          label: "Quản lý chăm sóc khách hàng (CSM)",
           click: () => mainWindow.webContents.send("navigate", "/crm"),
         },
         { label: "Thoát", role: "quit" },
       ],
     },
+    {
+      label: "Kho hàng",
+      submenu: [
+        {
+          label: "Quản lý kho hàng",
+          click: () => mainWindow.webContents.send("navigate", "/dashboard"),
+        },
+        {
+          label: "Quản lý xuất kho",
+          click: () => mainWindow.webContents.send("navigate", "/crm"),
+        },
+        { label: "Thoát", role: "quit" },
+      ],
+    },
+
   ];
 
   if (isDev) {

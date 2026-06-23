@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ImageIcon } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import Select from 'react-select';
 
 // ─── ĐỊNH NGHĨA DANH MỤC LỰA CHỌN (CONSTANTS) ───
@@ -328,7 +329,7 @@ export default function CRMSystem() {
               onClick={() => setShowNotiPopup(!showNotiPopup)}
               className="px-3 py-2 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all relative border border-slate-200 flex items-center gap-1.5"
             >
-              <span>Thông báo sinh nhật</span>
+              <span><Bell className="w-4 h-4" /></span>
               {birthdayCount > 0 && (
                 <span className="bg-rose-500 text-white font-bold text-xs px-1.5 py-0.5 rounded-full">
                   {birthdayCount}
@@ -374,7 +375,7 @@ export default function CRMSystem() {
               <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1 text-indigo-600">
-                    Tài liệu & Hình ảnh đính kèm
+                    Hình ảnh hóa đơn
                   </h3>
                   <p className="text-xs text-slate-400 mb-4">Tải tài liệu lên để tự động phân tích trích xuất dữ liệu điền vào biểu mẫu.</p>
                 </div>
@@ -416,7 +417,7 @@ export default function CRMSystem() {
                         {editingId ? "Cập nhật thay đổi" : "Lưu vào hệ thống"}
                       </button>
                       <button type="button" onClick={handleClearForm} className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all">
-                        Make Clean
+                        Xóa trắng
                       </button>
                     </div>
                   </div>
