@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ImageIcon } from 'lucide-react';
 import { Edit, Trash2 } from 'lucide-react';
 import Select from 'react-select';
-import CustomerDetailModal from './CustomerDetailModal';
+import CustomerDetailModal from '../components/CRM/CustomerDetailModal';
+import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
 
 // ─── ĐỊNH NGHĨA DANH MỤC LỰA CHỌN (CONSTANTS) ───
 const ECOSYSTEM_OPTIONS = [
@@ -99,11 +99,9 @@ const normalizeCustomerData = (customer) => {
 };
 
 export default function CRMSystem() {
-  const [isScanning, setIsScanning] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editingHistoryId, setEditingHistoryId] = useState(null);
   const [detailCustomerId, setDetailCustomerId] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
 
   // ─── STATE QUAN TRỌNG HỆ THỐNG ───
   const [customers, setCustomers] = useState([
@@ -154,33 +152,8 @@ export default function CRMSystem() {
   const [crmSearch, setCrmSearch] = useState('');
   const [crmFilterLabel, setCrmFilterLabel] = useState('');
   const [crmFilterEco, setCrmFilterEco] = useState('');
-  const [csmSearch, setCsmSearch] = useState('');
-  const [csmFilterStage, setCsmFilterStage] = useState('');
-  const [csmFilterStatus, setCsmFilterStatus] = useState('all');
 
   const [careData, setCareData] = useState([]);
-
-  const activeCareList = customers.map(cust => {
-    const existingCare = careData.find(b => b.id === cust.id);
-    const safeCareMethods = cust.careMethods || [];
-    return {
-      id: cust.id,
-      fullName: cust.fullName,
-      birthday: cust.birthday,
-      address: cust.address ? cust.address : 'Chưa có dữ liệu',
-      phone: (safeCareMethods.includes('Zalo OA') || safeCareMethods.includes('SMS') || safeCareMethods.includes('Telesale')) ? cust.phone : '********',
-      email: safeCareMethods.includes('Email Marketing') ? cust.email : '********',
-      facebook: safeCareMethods.includes('Messenger') ? cust.facebook : '********',
-      careMethods: safeCareMethods,
-      stage: cust.label,
-      products: cust.products || getPurchaseHistories(cust).map(h => h.products).filter(Boolean).join(', '),
-      careStaff: cust.careStaff,
-      status: existingCare ? existingCare.status : false,
-      careContent: existingCare ? existingCare.careContent : '',
-      careContentCustom: existingCare ? existingCare.careContentCustom : '',
-      behaviorMetrics: existingCare ? existingCare.behaviorMetrics : ''
-    };
-  });
 
   const todayStr = new Date().toISOString().slice(5, 10);
   const birthdayList = customers.filter(c => c.birthday && c.birthday.slice(5, 10) === todayStr);
@@ -193,101 +166,28 @@ export default function CRMSystem() {
     );
   };
 
-  const handleImageChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setImagePreview(URL.createObjectURL(file));
-    setIsScanning(true);
-
-    // Đọc file thành base64
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-    try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 }
-              },
-              {
-                type: 'text',
-                text: `Phân tích hình ảnh hóa đơn/tài liệu này và trích xuất thông tin khách hàng. 
-Trả về JSON thuần (không có markdown, không có backtick):
-{
-  "fullName": "họ và tên đầy đủ hoặc null",
-  "birthday": "YYYY-MM-DD hoặc null",
-  "address": "địa chỉ hoặc null",
-  "phone": "số điện thoại hoặc null",
-  "email": "email hoặc null",
-  "facebook": "link facebook hoặc null",
-  "products": "tên sản phẩm/dịch vụ đã mua hoặc null",
-  "singleDate": "YYYY-MM-DD ngày mua/ngày trên hóa đơn hoặc null",
-  "issue": "vấn đề/nhu cầu khách hàng nếu có hoặc null",
-  "ecosystem": "retail hoặc course hoặc coaching hoặc null (dựa vào loại sản phẩm)"
-}
-Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Chỉ trả về JSON.`
-              }
-            ]
-          }]
-        })
-      });
-
-      const data = await response.json();
-      const text = data.content?.map(c => c.text || '').join('') || '';
-
-      let extracted = {};
-      try {
-        extracted = JSON.parse(text.replace(/```json|```/g, '').trim());
-      } catch {
-        console.error('Không parse được JSON từ Claude:', text);
-      }
-
-      // Merge dữ liệu trích xuất vào form, bỏ qua các trường null
-      setFormData(prev => ({
-        ...prev,
-        ...(extracted.fullName && { fullName: extracted.fullName }),
-        ...(extracted.birthday && { birthday: extracted.birthday }),
-        ...(extracted.address && { address: extracted.address }),
-        ...(extracted.phone && { phone: extracted.phone }),
-        ...(extracted.email && { email: extracted.email }),
-        ...(extracted.facebook && { facebook: extracted.facebook }),
-        ...(extracted.products && { products: extracted.products }),
-        ...(extracted.singleDate && { singleDate: extracted.singleDate }),
-        ...(extracted.issue && { issue: extracted.issue }),
-        ...(extracted.ecosystem && { ecosystem: extracted.ecosystem }),
-      }));
-
-    } catch (err) {
-      console.error('Lỗi gọi Claude API:', err);
-      alert('Không thể phân tích ảnh. Vui lòng kiểm tra kết nối và thử lại.');
-    } finally {
-      setIsScanning(false);
-    }
+  // ─── CALLBACK NHẬN DỮ LIỆU TỪ InvoiceImageUploader ───
+  const handleOcrExtracted = (fields) => {
+    setFormData((prev) => ({
+      ...prev,
+      fullName: fields.fullName || prev.fullName,
+      phone: fields.phone || prev.phone,
+      email: fields.email || prev.email,
+      singleDate: fields.singleDate || prev.singleDate,
+      products: fields.products || prev.products,
+      issue: fields.issue || prev.issue,
+    }));
   };
 
   const handleClearForm = () => {
     setFormData(EMPTY_CUSTOMER);
-    setImagePreview(null);
     setEditingId(null);
     setEditingHistoryId(null);
   };
 
   const handleSaveData = () => {
     if (!formData.fullName || !formData.phone || !formData.birthday) {
-      alert("Vui lòng nhập tối thiểu Họ và tên, Ngày sinh, Số điện thoại!");
+      alert('Vui lòng nhập tối thiểu Họ và tên, Ngày sinh, Số điện thoại!');
       return;
     }
     const normalizedForm = normalizeCustomerData(formData);
@@ -340,16 +240,16 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
       }));
       setEditingId(null);
       setEditingHistoryId(null);
-      alert("Đã cập nhật thông tin thành công!");
+      alert('Đã cập nhật thông tin thành công!');
     } else {
       setCustomers([...customers, { ...normalizedForm, purchaseHistories: finalHistories, id: Date.now() }]);
-      alert("Đã thêm mới thành công!");
+      alert('Đã thêm mới thành công!');
     }
     handleClearForm();
   };
 
   const handleDeleteHistory = (customerId, historyId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.")) {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.')) {
       return;
     }
     setCustomers(prevCustomers =>
@@ -368,7 +268,7 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
         };
       })
     );
-    alert("Đã xóa giao dịch thành công!");
+    alert('Đã xóa giao dịch thành công!');
   };
 
   const handleEditClick = (customer) => {
@@ -394,39 +294,11 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
     <div className="min-h-screen bg-slate-50 text-slate-800 antialiased font-sans">
       <main className="max-w-[1600px] mx-auto px-4 py-8 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* KHỐI CHỌN ẢNH */}
-          <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1 text-indigo-600">
-                Hình ảnh hóa đơn
-              </h3>
-              <p className="text-xs text-slate-400 mb-4">Tải tài liệu lên để tự động phân tích trích xuất dữ liệu điền vào biểu mẫu.</p>
-            </div>
-            <div className="flex-1 min-h-[260px] bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 relative group overflow-hidden">
-              {imagePreview ? (
-                <>
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-contain max-h-[300px]" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <label className="bg-white text-slate-800 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer shadow-md">Thay đổi file</label>
-                  </div>
-                </>
-              ) : (
-                <label className="flex flex-col items-center justify-center cursor-pointer text-center p-6 w-full h-full">
-                  <span className="text-sm font-semibold text-slate-700 block mb-1">Nhấp để chọn file đính kèm</span>
-                  <span className="text-xs text-slate-400">Định dạng hỗ trợ: PNG, JPG, JPEG</span>
-                </label>
-              )}
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-              {isScanning && (
-                <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center gap-2">
-                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest animate-pulse">AI đang xử lý dữ liệu đầu vào...</span>
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* KHỐI THÔNG TIN BIỂU MẪU */}
+          {/* ─── KHỐI CHỌN ẢNH (COMPONENT RIÊNG) ─── */}
+          <InvoiceImageUploader onExtracted={handleOcrExtracted} />
+
+          {/* ─── KHỐI THÔNG TIN BIỂU MẪU ─── */}
           <div className="lg:col-span-8 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
             <div>
               <div className="flex flex-wrap justify-between items-center border-b border-slate-100 pb-3 mb-4 gap-2">
@@ -435,7 +307,7 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
                 </h3>
                 <div className="flex gap-2">
                   <button type="button" onClick={handleSaveData} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm transition-all">
-                    {editingId ? "Cập nhật thay đổi" : "Lưu vào hệ thống"}
+                    {editingId ? 'Cập nhật thay đổi' : 'Lưu vào hệ thống'}
                   </button>
                   <button type="button" onClick={handleClearForm} className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all">
                     Xóa trắng
@@ -450,6 +322,7 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
                   </div>
                 )}
 
+                {/* Nhóm 1: Thông tin cơ bản */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 1: Thông tin cơ bản</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -468,6 +341,7 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
                   </div>
                 </div>
 
+                {/* Nhóm 2: Kênh liên hệ */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 2: Kênh liên hệ</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -493,6 +367,7 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
                   </div>
                 </div>
 
+                {/* Nhóm 3: Lịch sử mua hàng */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 3: Lịch sử mua hàng</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -526,7 +401,6 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
                           </label>
                         ) : (
                           <label htmlFor="invoice-image-upload" className="w-full h-full cursor-pointer flex flex-col items-center justify-center gap-1.5 p-3 text-center bg-slate-50/50">
-                            <ImageIcon className="w-5 h-5 text-indigo-500 animate-pulse" />
                             <span className="text-slate-700 text-xs font-semibold">Nhấp chọn ảnh hóa đơn</span>
                           </label>
                         )}
@@ -538,8 +412,9 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
                   </div>
                 </div>
 
+                {/* Nhóm 4: Chăm sóc & Tiếp thị */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 4: Chăm sóc & Tiếp thị</h4>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 4: Chăm sóc &amp; Tiếp thị</h4>
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mối quan tâm / Vấn đề</label>
@@ -554,17 +429,30 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
                         </select>
                         <button type="button" onClick={() => { if (promoEvent) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent }] }); setPromoEvent(''); }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl border border-indigo-200">Thêm</button>
                       </div>
-                      <div className="mt-1.5 space-y-1">{(formData.promotions || []).map((p, i) => <div key={i} className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200"><span>Sự kiện: <strong className="text-indigo-600">{p.event}</strong></span><span className="text-rose-500 font-bold cursor-pointer" onClick={() => setFormData({ ...formData, promotions: formData.promotions.filter((_, idx) => idx !== i) })}>Gỡ</span></div>)}</div>
+                      <div className="mt-1.5 space-y-1">
+                        {(formData.promotions || []).map((p, i) => (
+                          <div key={i} className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200">
+                            <span>Sự kiện: <strong className="text-indigo-600">{p.event}</strong></span>
+                            <span className="text-rose-500 font-bold cursor-pointer" onClick={() => setFormData({ ...formData, promotions: formData.promotions.filter((_, idx) => idx !== i) })}>Gỡ</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức chăm sóc (Chọn nhiều)</label>
                       <div className="flex flex-wrap gap-4 bg-white p-3 rounded-xl border border-slate-200">
-                        {CARE_METHODS.map(m => <label key={m.value} className="flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="checkbox" checked={(formData.careMethods || []).includes(m.value)} onChange={e => setFormData({ ...formData, careMethods: e.target.checked ? [...(formData.careMethods || []), m.value] : formData.careMethods.filter(c => c !== m.value) })} className="rounded text-indigo-600 focus:ring-indigo-500" /> {m.label}</label>)}
+                        {CARE_METHODS.map(m => (
+                          <label key={m.value} className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                            <input type="checkbox" checked={(formData.careMethods || []).includes(m.value)} onChange={e => setFormData({ ...formData, careMethods: e.target.checked ? [...(formData.careMethods || []), m.value] : formData.careMethods.filter(c => c !== m.value) })} className="rounded text-indigo-600 focus:ring-indigo-500" />
+                            {m.label}
+                          </label>
+                        ))}
                       </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Nhóm 5: Phân sự nội bộ */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 5: Phân sự nội bộ</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -585,8 +473,9 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
                   </div>
                 </div>
 
+                {/* Nhóm 6: Trạng thái & Gán nhãn */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 6: Trạng thái & Gán nhãn</h4>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 6: Trạng thái &amp; Gán nhãn</h4>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Gán nhãn phân cấp</label>
                     <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-indigo-600" value={formData.label} onChange={e => setFormData({ ...formData, label: e.target.value })}>
@@ -599,7 +488,7 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
           </div>
         </div>
 
-        {/* BẢNG DỮ LIỆU CRM CHÍNH */}
+        {/* ─── BẢNG DỮ LIỆU CRM CHÍNH ─── */}
         <div className="space-y-4 pt-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap gap-4 items-center shadow-xs">
             <div className="flex-1 min-w-[280px]">
@@ -661,7 +550,7 @@ Nếu không tìm thấy thông tin nào, trả về null cho trường đó. Ch
           </div>
         </div>
 
-        {/* MODAL CHI TIẾT */}
+        {/* ─── MODAL CHI TIẾT ─── */}
         <CustomerDetailModal
           customer={detailCustomer}
           onClose={() => setDetailCustomerId(null)}
