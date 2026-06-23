@@ -91,7 +91,7 @@ export default function CRMSystem() {
   const [imagePreview, setImagePreview] = useState(null);
   const [showNotiPopup, setShowNotiPopup] = useState(false);
 
-  // ─── DATA GỐC NGUYÊN BẢN KHÔNG BỊ MẤT ───
+  // ─── STATE QUAN TRỌNG HỆ THỐNG (BẢO LƯU DATA NGUYÊN BẢN) ───
   const [customers, setCustomers] = useState([
     {
       id: 1,
@@ -103,15 +103,15 @@ export default function CRMSystem() {
       facebook: 'https://fb.com/tiennguyen',
       ecosystem: 'course',
       issue: 'Cần tìm tool tối ưu quy trình render video tự động',
-      purchaseCount: 'lần 2',
+      purchaseCount: 2,
       purchaseDates: ['2026-03-15', '2026-05-20'],
       products: 'Khóa học Pro Video Editing',
       purchaseHistories: [
         {
-          id: '1-0', 
-          date: '2026-03-15', 
-          products: 'Khóa học Pro Video Editing', 
-          invoiceLink: 'https://example.com/invoice_01.pdf', 
+          id: '1-0',
+          date: '2026-03-15',
+          products: 'Khóa học Pro Video Editing',
+          invoiceLink: 'https://example.com/invoice_01.pdf',
           careMethods: ['Zalo OA', 'Email Marketing'],
           promotions: [{ date: '2026-03-15', event: 'Ưu đãi mở bán sớm -30%' }],
           consultant: 'NguyenVanA',
@@ -119,10 +119,10 @@ export default function CRMSystem() {
           issue: 'Cần tìm tool tối ưu quy trình render video tự động',
         },
         {
-          id: '1-1', 
-          date: '2026-05-20', 
-          products: 'Gói nâng cấp Pro Video Editing', 
-          invoiceLink: 'https://example.com/invoice_02.pdf', 
+          id: '1-1',
+          date: '2026-05-20',
+          products: 'Gói nâng cấp Pro Video Editing',
+          invoiceLink: 'https://example.com/invoice_02.pdf',
           careMethods: ['Zalo OA', 'Email Marketing'],
           promotions: [{ date: '2026-03-15', event: 'Ưu đãi mở bán sớm -40%' }],
           consultant: 'NguyenVanA',
@@ -147,10 +147,10 @@ export default function CRMSystem() {
   const [csmFilterStatus, setCsmFilterStatus] = useState('all');
 
   const [careData, setCareData] = useState([]);
-  
+
   const activeCareList = customers.map(cust => {
     const existingCare = careData.find(b => b.id === cust.id);
-    const safeCareMethods = cust.careMethods || []; 
+    const safeCareMethods = cust.careMethods || [];
 
     return {
       id: cust.id,
@@ -182,7 +182,7 @@ export default function CRMSystem() {
     );
   };
 
-  // ─── XỬ LÝ SCAN OCR HÌNH ẢNH (BẢO LƯU DATA MẪU TRẦN THỊ THẢO) ───
+  // ─── XỬ LÝ SCAN OCR HÌNH ẢNH ───
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -203,10 +203,10 @@ export default function CRMSystem() {
           purchaseDates: ['2026-06-22'],
           products: 'Gói tư vấn Setup tự động hóa CRM',
           purchaseHistories: [
-            { 
-              id: `ocr-${Date.now()}`, 
-              date: '2026-06-22', 
-              products: 'Gói tư vấn Setup tự động hóa CRM', 
+            {
+              id: `ocr-${Date.now()}`,
+              date: '2026-06-22',
+              products: 'Gói tư vấn Setup tự động hóa CRM',
               invoiceLink: 'https://example.com/invoice_thao_ocr.pdf',
               issue: 'Muốn làm đối tác cung cấp khóa học Online ngành y dược',
               careMethods: ['Zalo OA', 'Messenger', 'Email Marketing'],
@@ -599,6 +599,7 @@ export default function CRMSystem() {
                     <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                       <th className="px-4 py-4 w-72">Thông tin cơ bản (Profile)</th>
                       <th className="px-4 py-4 w-72">Kênh liên hệ & Hệ sinh thái</th>
+                      <th className="px-4 py-4 w-72">Tổng số lần mua hàng</th>
                       <th className="px-4 py-4 w-48 text-center">Nhãn trạng thái</th>
                       <th className="px-4 py-4 w-44 text-center">Hành động</th>
                     </tr>
@@ -606,13 +607,13 @@ export default function CRMSystem() {
                   <tbody className="divide-y divide-slate-200 text-xs">
                     {getRenderedRows().map(cust => (
                       <tr key={cust.id} className="hover:bg-slate-50/60 transition-colors align-top">
-                        <td className="px-4 py-4 space-y-1">
+                        <td className="px-3 py-3 space-y-1">
                           <div><span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span></div>
                           <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{cust.birthday}</span></div>
                           <div className="text-slate-600"><span className="text-slate-500">Địa chỉ:</span> <p className="inline break-words font-medium">{cust.address || 'Chưa cập nhật'}</p></div>
                         </td>
 
-                        <td className="px-4 py-4 space-y-1">
+                        <td className="px-3 py-3 space-y-1">
                           <div><span className="text-slate-500">SĐT:</span> <span className="font-bold text-slate-900">{cust.phone}</span></div>
                           <div><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-800 break-all">{cust.email || 'Chưa điền'}</span></div>
                           <div>
@@ -623,6 +624,14 @@ export default function CRMSystem() {
                           <div className="pt-1">
                             <span className="bg-slate-100 border text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px]">
                               {ECOSYSTEM_OPTIONS.find(e => e.value === cust.ecosystem)?.label || 'Chưa chọn hệ sinh thái'}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3 space-y-1">
+                          <div>
+                            <span className="font-bold text-indigo-600">
+                              {cust.purchaseCount} lần
                             </span>
                           </div>
                         </td>
@@ -651,11 +660,11 @@ export default function CRMSystem() {
               </div>
             </div>
 
-            {/* MODAL CHI TIẾT HOẠT ĐỘNG KHÁCH HÀNG - PHÂN TÁCH ĐỘC LẬP HOÀN TOÀN TỪNG HÀNG THEO CỘT 3, 4, 5 */}
+            {/* MODAL CHI TIẾT HOẠT ĐỘNG KHÁCH HÀNG (CỘT 3, 4, 5 PHÂN TÁCH ĐỘC LẬP TỪNG DÒNG) */}
             {detailCustomer && (
               <div className="fixed inset-0 z-50 bg-slate-900/45 px-4 py-6 flex items-center justify-center">
                 <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[92vh] flex flex-col overflow-hidden">
-                  
+
                   {/* HEADER MODAL */}
                   <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
                     <div>
@@ -667,24 +676,17 @@ export default function CRMSystem() {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <button 
-                        type="button" 
-                        onClick={() => { handleEditClick(detailCustomer, 'activity'); setDetailCustomerId(null); }} 
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-xs"
-                      >
-                        Chỉnh sửa hoạt động
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => setDetailCustomerId(null)} 
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition-all"
+                      <button
+                        type="button"
+                        onClick={() => setDetailCustomerId(null)}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition-all"
                       >
                         Đóng
                       </button>
                     </div>
                   </div>
 
-                  {/* BODY MODAL - CHUẨN MÔ HÌNH ROW-BY-ROW CHO TỪNG GIAO DỊCH ĐỘC LẬP */}
+                  {/* BODY MODAL - CHUẨN MÔ HÌNH ROW-BY-ROW */}
                   <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
                     <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
                       <div className="px-4 py-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
@@ -693,27 +695,29 @@ export default function CRMSystem() {
                           Tổng số lần giao dịch: <span className="font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded ml-1">{detailCustomer.purchaseCount}</span>
                         </div>
                       </div>
-                      
+
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-xs min-w-[1400px]">
+                        <table className="w-full text-left border-collapse text-xs min-w-[1500px]">
                           <thead>
                             <tr className="bg-slate-50/70 border-b border-slate-200 font-bold text-slate-600 uppercase tracking-wider text-[10px]">
-                              {/* CỘT CHUNG */}
                               <th className="px-4 py-3.5 text-center w-12 bg-slate-50/40">STT</th>
-                              
-                              {/* NHÓM CỘT 3: LỊCH SỬ MUA HÀNG (SALES HISTORY) */}
+
+                              {/* CỘT 3 */}
                               <th className="px-4 py-3.5 w-32 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">Ngày giao dịch</th>
                               <th className="px-4 py-3.5 w-60 bg-indigo-50/20 text-indigo-900">Sản phẩm / Dịch vụ</th>
                               <th className="px-4 py-3.5 text-center w-24 bg-indigo-50/20 text-indigo-900">Hóa đơn</th>
 
-                              {/* NHÓM CỘT 4: CHĂM SÓC & TIẾP THỊ (NURTURING & MARKETING) */}
+                              {/* CỘT 4 */}
                               <th className="px-4 py-3.5 w-64 border-l border-slate-200 bg-amber-50/20 text-amber-900">Mối quan tâm / Điểm đau (Issue)</th>
-                              <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Chi Chiến dịch / Quà tặng áp dụng</th>
+                              <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Chiến dịch / Quà tặng áp dụng</th>
                               <th className="px-4 py-3.5 w-48 bg-amber-50/20 text-amber-900">Kênh tiếp cận</th>
 
-                              {/* NHÓM CỘT 5: PHÂN SỰ NỘI BỘ (INTERNAL ASSIGNMENT) */}
+                              {/* CỘT 5 */}
                               <th className="px-4 py-3.5 w-44 border-l border-slate-200 bg-emerald-50/20 text-emerald-900">Nhân sự tư vấn</th>
                               <th className="px-4 py-3.5 w-44 bg-emerald-50/20 text-emerald-900">Người chăm sóc (Staff)</th>
+
+                              {/* HÀNH ĐỘNG DÒNG */}
+                              <th className="px-4 py-3.5 text-center w-28 border-l border-slate-200 bg-slate-100 text-slate-700">Hành động</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-200 bg-white">
@@ -723,7 +727,7 @@ export default function CRMSystem() {
                                 .map((history, index) => (
                                   <tr key={history.id || index} className="hover:bg-slate-50/40 transition-colors align-top divide-x divide-slate-100">
                                     <td className="px-4 py-4 font-semibold text-slate-400 text-center">{index + 1}</td>
-                                    
+
                                     {/* CỘT 3 */}
                                     <td className="px-4 py-4 font-bold text-slate-900 whitespace-nowrap border-l border-slate-200 bg-indigo-50/5">
                                       {history.date || '---'}
@@ -805,11 +809,38 @@ export default function CRMSystem() {
                                         <span className="text-slate-400 italic">Chưa chỉ định</span>
                                       )}
                                     </td>
+
+                                    {/* HÀNH ĐỘNG SỬA ĐƠN TRÊN TỪNG DÒNG RIÊNG BIỆT */}
+                                    <td className="px-4 py-4 text-center whitespace-nowrap border-l border-slate-200 bg-slate-50/50">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const targetedFormData = {
+                                            ...detailCustomer,
+                                            products: history.products || detailCustomer.products,
+                                            invoiceLink: history.invoiceLink || detailCustomer.invoiceLink,
+                                            issue: history.issue || detailCustomer.issue,
+                                            careMethods: (history.careMethods && history.careMethods.length > 0) ? history.careMethods : detailCustomer.careMethods,
+                                            promotions: (history.promotions && history.promotions.length > 0) ? history.promotions : detailCustomer.promotions,
+                                            consultant: history.consultant || detailCustomer.consultant,
+                                            careStaff: history.careStaff || detailCustomer.careStaff
+                                          };
+                                          setFormData(normalizeCustomerData(targetedFormData));
+                                          setEditingId(detailCustomer.id);
+                                          setEditingScope('activity');
+                                          setDetailCustomerId(null);
+                                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }}
+                                        className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1.5 rounded-lg transition-all shadow-xs text-[11px]"
+                                      >
+                                        Sửa đơn này
+                                      </button>
+                                    </td>
                                   </tr>
                                 ))
                             ) : (
                               <tr>
-                                <td colSpan="8" className="text-xs text-slate-400 italic p-6 text-center">Chưa có lịch sử giao dịch phân tách độc lập.</td>
+                                <td colSpan="9" className="text-xs text-slate-400 italic p-6 text-center">Chưa có lịch sử giao dịch phân tách độc lập.</td>
                               </tr>
                             )}
                           </tbody>
