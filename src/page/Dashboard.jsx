@@ -506,37 +506,123 @@ export default function CRMSystem() {
                       <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                         Nhóm 3: Lịch sử mua hàng & Dịch vụ (Sales History)
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-                        {/* ĐÃ SỬA THÀNH INPUT TYPE NUMBER CHO TỔNG SỐ LẦN MUA HÀNG */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tổng số lần đã mua hàng</label>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="Ví dụ: 2"
-                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                            value={formData.purchaseCount || 0}
-                            onChange={e => setFormData({ ...formData, purchaseCount: parseInt(e.target.value, 10) || 0 })}
-                            disabled
-                          />
+                      {/* Chia Grid làm 2 cột bằng nhau trên màn hình md trở lên */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+
+                        {/* BÊN TRÁI: KHỐI CHỨA 3 Ô NHẬP LIỆU XẾP DỌC */}
+                        <div className="space-y-3">
+                          {/* 1. Tổng số lần đã mua hàng */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tổng số lần đã mua hàng</label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="Ví dụ: 2"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                              value={formData.purchaseCount || 0}
+                              onChange={e => setFormData({ ...formData, purchaseCount: parseInt(e.target.value, 10) || 0 })}
+                              disabled
+                            />
+                          </div>
+
+                          {/* 2. Tên sản phẩm */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm - dịch vụ đã mua</label>
+                            <input
+                              type="text"
+                              placeholder="Nhập thủ công chi tiết sản phẩm"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              value={formData.products}
+                              onChange={e => setFormData({ ...formData, products: e.target.value })}
+                            />
+                          </div>
+
+                          {/* 3. Ngày mua hàng */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
+                            <input
+                              type="date"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              value={formData.singleDate}
+                              onChange={e => setFormData({ ...formData, singleDate: e.target.value })}
+                            />
+                          </div>
                         </div>
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm - dịch vụ đã mua / tư vấn</label>
-                          <input type="text" placeholder="Nhập thủ công chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
+                        {/* BÊN PHẢI: KHỐI CHỨA Ô HÌNH ẢNH HÓA ĐƠN ĐỘC LẬP */}
+                        <div className="h-full flex flex-col">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                            Hóa đơn đầu ra (Click vào ảnh để thay đổi)
+                          </label>
+
+                          {/* Tăng chiều cao h-full hoặc cố định h-[178px] để cân bằng với 3 ô nhập bên trái */}
+                          <div className="relative w-full h-[174px] bg-white border border-slate-200 hover:border-indigo-400 rounded-xl overflow-hidden shadow-sm transition-all group flex-1">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id="invoice-image-upload"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                  const imageUrl = URL.createObjectURL(file);
+                                  setFormData({ ...formData, invoiceLink: imageUrl });
+                                }
+                              }}
+                            />
+
+                            {formData.invoiceLink && !formData.invoiceLink.endsWith('.pdf') ? (
+                              /* TRƯỜNG HỢP: ĐÃ CÓ ẢNH ĐÍNH KÈM -> PHỦ KÍN Ô NHẬP, CLICK ĐỂ ĐỔI */
+                              <label htmlFor="invoice-image-upload" className="block w-full h-full cursor-pointer relative">
+                                <img
+                                  src={formData.invoiceLink}
+                                  alt="Hóa đơn đầu ra"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                                {/* Lớp phủ hover xuất hiện chữ "Thay đổi ảnh" */}
+                                <div className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                  <span className="text-white text-xs font-semibold bg-indigo-600 px-3 py-1.5 rounded-xl shadow-md">
+                                    Thay đổi hình ảnh
+                                  </span>
+                                </div>
+                              </label>
+                            ) : (
+                              /* TRƯỜNG HỢP: CHƯA CÓ ẢNH HOẶC ĐANG LÀ LINK .PDF GỐC */
+                              <label
+                                htmlFor="invoice-image-upload"
+                                className="w-full h-full cursor-pointer flex flex-col items-center justify-center gap-1.5 p-3 text-center bg-slate-50/50 hover:bg-indigo-50/30 transition-colors"
+                              >
+                                <ImageIcon className="w-5 h-5 text-indigo-500 animate-pulse" />
+                                <span className="text-slate-700 text-xs font-semibold">Nhấp chọn ảnh hóa đơn</span>
+                                <p className="text-[10px] text-slate-400">
+                                  {formData.invoiceLink && formData.invoiceLink.endsWith('.pdf')
+                                    ? "⚠️ Đơn gốc hiện là file PDF, hãy đổi sang Ảnh"
+                                    : "Hỗ trợ định dạng PNG, JPG, JPEG"}
+                                </p>
+                              </label>
+                            )}
+
+                            {/* Nút xóa nhanh ảnh nằm ở góc phải nếu cần đưa về trạng thái trống */}
+                            {formData.invoiceLink && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setFormData({ ...formData, invoiceLink: '' });
+                                }}
+                                className="absolute top-2 right-2 z-10 bg-rose-500/90 hover:bg-rose-600 text-white w-5 h-5 flex items-center justify-center text-xs rounded-full transition-colors shadow-xs"
+                                title="Xóa ảnh hiện tại"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
                         </div>
 
-                        {/* ĐÃ CHUYỂN THÀNH NGÀY MUA HÀNG ĐƠN LẺ */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
-                          <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.singleDate} onChange={e => setFormData({ ...formData, singleDate: e.target.value })} />
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hóa đơn đầu ra (Đường dẫn PDF trực tuyến)</label>
-                          <input type="text" placeholder="Dán link lưu trữ tệp tin hóa đơn..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.invoiceLink} onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })} />
-                        </div>
                       </div>
                     </div>
 
@@ -754,7 +840,20 @@ export default function CRMSystem() {
                                     </td>
                                     <td className="px-4 py-4 text-center whitespace-nowrap bg-indigo-50/5">
                                       {history.invoiceLink ? (
-                                        <a href={history.invoiceLink} target="_blank" rel="noreferrer" className="text-indigo-600 hover:text-indigo-700 font-bold underline">Xem PDF</a>
+                                        <div className="flex justify-center">
+                                          <a
+                                            href={history.invoiceLink}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="block relative group w-12 h-12 border border-slate-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all"
+                                            title="Nhấp để xem ảnh gốc"
+                                          >
+                                            <img src={history.invoiceLink} alt="Hóa đơn" className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                                              <span className="text-[9px] text-white font-bold uppercase tracking-widest">Xem</span>
+                                            </div>
+                                          </a>
+                                        </div>
                                       ) : (
                                         <span className="text-slate-300 italic">Trống</span>
                                       )}
