@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  UserPlus, Search, Calendar, Tag, Users, CheckSquare, 
-  Layers, Phone, Mail, FileText, Cake, Bell,
-  Plus, Trash2, Edit2, RotateCcw, Upload, Image as ImageIcon,
-  ShieldAlert, ArrowRight, MapPin, User, Link, Percent, ShoppingBag
-} from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import Select from 'react-select';
 
 // ─── ĐỊNH NGHĨA DANH MỤC LỰA CHỌN (CONSTANTS) ───
@@ -64,7 +59,12 @@ const getPurchaseHistories = (customer) => {
     id: `${customer.id || 'new'}-${index}`,
     date,
     products: customer.products || '',
-    invoiceLink: customer.invoiceLink || ''
+    invoiceLink: customer.invoiceLink || '',
+    issue: customer.issue || '',
+    careMethods: customer.careMethods || [],
+    promotions: customer.promotions || [],
+    consultant: customer.consultant || '',
+    careStaff: customer.careStaff || ''
   }));
 };
 
@@ -91,7 +91,7 @@ export default function CRMSystem() {
   const [imagePreview, setImagePreview] = useState(null);
   const [showNotiPopup, setShowNotiPopup] = useState(false);
 
-  // ─── STATE QUAN TRỌNG HỆ THỐNG ───
+  // ─── DATA GỐC NGUYÊN BẢN KHÔNG BỊ MẤT ───
   const [customers, setCustomers] = useState([
     {
       id: 1,
@@ -107,14 +107,29 @@ export default function CRMSystem() {
       purchaseDates: ['2026-03-15', '2026-05-20'],
       products: 'Khóa học Pro Video Editing',
       purchaseHistories: [
-        { id: '1-0', date: '2026-03-15', products: 'Khóa học Pro Video Editing', invoiceLink: 'https://example.com/invoice_01.pdf' },
-        { id: '1-1', date: '2026-05-20', products: 'Gói nâng cấp Pro Video Editing', invoiceLink: 'https://example.com/invoice_02.pdf' }
+        {
+          id: '1-0', 
+          date: '2026-03-15', 
+          products: 'Khóa học Pro Video Editing', 
+          invoiceLink: 'https://example.com/invoice_01.pdf', 
+          careMethods: ['Zalo OA', 'Email Marketing'],
+          promotions: [{ date: '2026-03-15', event: 'Ưu đãi mở bán sớm -30%' }],
+          consultant: 'NguyenVanA',
+          careStaff: 'TranThiB',
+          issue: 'Cần tìm tool tối ưu quy trình render video tự động',
+        },
+        {
+          id: '1-1', 
+          date: '2026-05-20', 
+          products: 'Gói nâng cấp Pro Video Editing', 
+          invoiceLink: 'https://example.com/invoice_02.pdf', 
+          careMethods: ['Zalo OA', 'Email Marketing'],
+          promotions: [{ date: '2026-03-15', event: 'Ưu đãi mở bán sớm -40%' }],
+          consultant: 'NguyenVanA',
+          careStaff: 'TranThiB',
+          issue: 'Cần tìm tool tối ưu quy trình render video tự động',
+        }
       ],
-      careMethods: ['Zalo OA', 'Email Marketing'],
-      promotions: [{ date: '2026-03-15', event: 'Ưu đãi mở bán sớm -30%' }],
-      consultant: 'NguyenVanA',
-      careStaff: 'TranThiB',
-      invoiceLink: 'https://example.com/invoice_01.pdf',
       label: 'Đã mua hàng'
     }
   ]);
@@ -132,17 +147,20 @@ export default function CRMSystem() {
   const [csmFilterStatus, setCsmFilterStatus] = useState('all');
 
   const [careData, setCareData] = useState([]);
+  
   const activeCareList = customers.map(cust => {
     const existingCare = careData.find(b => b.id === cust.id);
+    const safeCareMethods = cust.careMethods || []; 
+
     return {
       id: cust.id,
       fullName: cust.fullName,
       birthday: cust.birthday,
       address: cust.address ? cust.address : 'Chưa có dữ liệu',
-      phone: (cust.careMethods.includes('Zalo OA') || cust.careMethods.includes('SMS') || cust.careMethods.includes('Telesale')) ? cust.phone : '********',
-      email: cust.careMethods.includes('Email Marketing') ? cust.email : '********',
-      facebook: cust.careMethods.includes('Messenger') ? cust.facebook : '********',
-      careMethods: cust.careMethods,
+      phone: (safeCareMethods.includes('Zalo OA') || safeCareMethods.includes('SMS') || safeCareMethods.includes('Telesale')) ? cust.phone : '********',
+      email: safeCareMethods.includes('Email Marketing') ? cust.email : '********',
+      facebook: safeCareMethods.includes('Messenger') ? cust.facebook : '********',
+      careMethods: safeCareMethods,
       stage: cust.label,
       products: cust.products || getPurchaseHistories(cust).map(h => h.products).filter(Boolean).join(', '),
       careStaff: cust.careStaff,
@@ -152,6 +170,7 @@ export default function CRMSystem() {
       behaviorMetrics: existingCare ? existingCare.behaviorMetrics : ''
     };
   });
+
   const todayStr = new Date().toISOString().slice(5, 10);
   const birthdayList = customers.filter(c => c.birthday && c.birthday.slice(5, 10) === todayStr);
   const birthdayCount = birthdayList.length;
@@ -163,7 +182,7 @@ export default function CRMSystem() {
     );
   };
 
-  // ─── XỬ LÝ SCAN OCR HÌNH ẢNH ───
+  // ─── XỬ LÝ SCAN OCR HÌNH ẢNH (BẢO LƯU DATA MẪU TRẦN THỊ THẢO) ───
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -184,7 +203,18 @@ export default function CRMSystem() {
           purchaseDates: ['2026-06-22'],
           products: 'Gói tư vấn Setup tự động hóa CRM',
           purchaseHistories: [
-            { id: `ocr-${Date.now()}`, date: '2026-06-22', products: 'Gói tư vấn Setup tự động hóa CRM', invoiceLink: 'https://example.com/invoice_thao_ocr.pdf' }
+            { 
+              id: `ocr-${Date.now()}`, 
+              date: '2026-06-22', 
+              products: 'Gói tư vấn Setup tự động hóa CRM', 
+              invoiceLink: 'https://example.com/invoice_thao_ocr.pdf',
+              issue: 'Muốn làm đối tác cung cấp khóa học Online ngành y dược',
+              careMethods: ['Zalo OA', 'Messenger', 'Email Marketing'],
+              promotions: [{ date: '2026-06-22', event: 'Sự kiện đối tác chiến lược' }],
+              consultant: 'LeVanC',
+              careStaff: 'NguyenVanA',
+              invoiceLink: 'https://example.com/invoice_thao_ocr.pdf'
+            }
           ],
           careMethods: ['Zalo OA', 'Messenger', 'Email Marketing'],
           promotions: [{ date: '2026-06-22', event: 'Sự kiện đối tác chiến lược' }],
@@ -266,7 +296,6 @@ export default function CRMSystem() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ─── HÀM BỔ TRỢ RENDER DANH SÁCH 1 KHÁCH HÀNG / NHIỀU LỊCH SỬ MUA ───
   const getRenderedRows = () => {
     return customers.map(normalizeCustomerData).filter(c => {
       const purchaseText = getPurchaseHistories(c).map(h => `${h.date} ${h.products} ${h.invoiceLink}`).join(' ');
@@ -281,8 +310,8 @@ export default function CRMSystem() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 antialiased font-sans">
-      
-      {/* Header Điều Hướng & Chuông Thông Báo */}
+
+      {/* Header Điều Hướng */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 h-16 flex justify-between items-center relative">
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
@@ -294,9 +323,8 @@ export default function CRMSystem() {
             </button>
           </div>
 
-          {/* CHUÔNG THÔNG BÁO POPUP */}
           <div className="relative">
-            <button 
+            <button
               onClick={() => setShowNotiPopup(!showNotiPopup)}
               className="px-3 py-2 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all relative border border-slate-200 flex items-center gap-1.5"
             >
@@ -338,11 +366,11 @@ export default function CRMSystem() {
       </header>
 
       <main className="max-w-[1600px] mx-auto px-4 py-8 space-y-8">
-        
+
         {currentTab === 0 && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-              {/* KHỐI CHỌN ẢNH (BÊN TRÁI) */}
+              {/* KHỐI CHỌN ẢNH */}
               <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1 text-indigo-600">
@@ -376,7 +404,7 @@ export default function CRMSystem() {
                 </div>
               </div>
 
-              {/* KHỐI THÔNG TIN BIỂU MẪU CẤU TRÚC 6 NHÓM CHUẨN (BÊN PHẢI) */}
+              {/* KHỐI THÔNG TIN BIỂU MẪU CẤU TRÚC 6 NHÓM CHUẨN */}
               <div className="lg:col-span-8 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
                 <div>
                   <div className="flex flex-wrap justify-between items-center border-b border-slate-100 pb-3 mb-4 gap-2">
@@ -388,7 +416,7 @@ export default function CRMSystem() {
                         {editingId ? "Cập nhật thay đổi" : "Lưu vào hệ thống"}
                       </button>
                       <button type="button" onClick={handleClearForm} className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all">
-                        Làm mới ô nhập
+                        Make Clean
                       </button>
                     </div>
                   </div>
@@ -400,159 +428,156 @@ export default function CRMSystem() {
                       </div>
                     )}
                     {(editingScope === 'all' || editingScope === 'profile') && (
-                    <>
-                    
-                    {/* NHÓM 1: THÔNG TIN CƠ BẢN */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 1: Thông tin cơ bản (Profile Khách hàng)</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Họ và tên *</label>
-                          <input type="text" placeholder="Nhập thủ công" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
+                      <>
+                        {/* NHÓM 1: THÔNG TIN CƠ BẢN */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 1: Thông tin cơ bản (Profile Khách hàng)</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Họ và tên *</label>
+                              <input type="text" placeholder="Nhập thủ công" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh *</label>
+                              <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.birthday} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Địa chỉ chính xác</label>
+                              <input type="text" placeholder="Nhập thủ công địa chỉ cư trú hoặc giao hàng" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} />
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh *</label>
-                          <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.birthday} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Địa chỉ chính xác</label>
-                          <input type="text" placeholder="Nhập thủ công địa chỉ cư trú hoặc giao hàng" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} />
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* NHÓM 2: KÊNH LIÊN HỆ & HỆ SINH THÁI */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 2: Kênh liên hệ & Hệ sinh thái (Contact Channels)</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số điện thoại *</label>
-                          <input type="text" placeholder="Nhập thủ công" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                        {/* NHÓM 2: KÊNH LIÊN HỆ & HỆ SINH THÁI */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 2: Kênh liên hệ & Hệ sinh thái (Contact Channels)</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số điện thoại *</label>
+                              <input type="text" placeholder="Nhập thủ công" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Thư điện tử (Email)</label>
+                              <input type="email" placeholder="Nhập thủ công" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn Facebook</label>
+                              <input type="text" placeholder="Nhập thủ công link trang cá nhân" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.facebook} onChange={e => setFormData({ ...formData, facebook: e.target.value })} />
+                            </div>
+                            <div className="md:col-span-3">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Thuộc hệ sinh thái doanh nghiệp (Chọn 1)</label>
+                              <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.ecosystem} onChange={e => setFormData({ ...formData, ecosystem: e.target.value })}>
+                                <option value="">-- Click để chọn một phân hệ --</option>
+                                {ECOSYSTEM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Thư điện tử (Email)</label>
-                          <input type="email" placeholder="Nhập thủ công" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn Facebook</label>
-                          <input type="text" placeholder="Nhập thủ công link trang cá nhân" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.facebook} onChange={e => setFormData({ ...formData, facebook: e.target.value })} />
-                        </div>
-                        <div className="md:col-span-3">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Thuộc hệ sinh thái doanh nghiệp (Chọn 1)</label>
-                          <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.ecosystem} onChange={e => setFormData({ ...formData, ecosystem: e.target.value })}>
-                            <option value="">-- Click để chọn một phân hệ --</option>
-                            {ECOSYSTEM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    </>
+                      </>
                     )}
 
                     {(editingScope === 'all' || editingScope === 'activity') && (
-                    <>
-                    {/* NHÓM 3: LỊCH SỬ MUA HÀNG & DỊCH VỤ */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 3: Lịch sử mua hàng & Dịch vụ (Sales History)</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số lần đã mua hàng (Chọn 1)</label>
-                          <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.purchaseCount} onChange={e => setFormData({ ...formData, purchaseCount: e.target.value })}>
-                            {['lần 0', 'lần 1', 'lần 2', 'lần 3', 'lần 4', 'lần 5', 'lần n+'].map(v => <option key={v} value={v}>{v}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm - dịch vụ đã mua / tư vấn</label>
-                          <input type="text" placeholder="Nhập thủ công chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Các ngày thực hiện mua hàng (Chọn nhiều ngày)</label>
-                          <div className="flex gap-1.5">
-                            <input type="date" className="flex-1 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={inputPurchaseDate} onChange={e => setInputPurchaseDate(e.target.value)} />
-                            <button type="button" onClick={() => {
-                              if (inputPurchaseDate && !formData.purchaseDates.includes(inputPurchaseDate)) {
-                                const nextHistories = [...getPurchaseHistories(formData), { id: `${Date.now()}`, date: inputPurchaseDate, products: formData.products, invoiceLink: formData.invoiceLink }];
-                                setFormData({ ...formData, purchaseDates: [...formData.purchaseDates, inputPurchaseDate], purchaseHistories: nextHistories });
-                              }
-                              setInputPurchaseDate('');
-                            }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl hover:bg-indigo-100 transition-all border border-indigo-200">Thêm ngày</button>
-                          </div>
-                          <div className="mt-1.5 space-y-1">{getPurchaseHistories(formData).filter(h => h.date || h.products || h.invoiceLink).map((h, i) => <div key={h.id || i} className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200 shadow-2xs"><span><strong className="text-indigo-600">{h.date || 'Chưa có ngày'}</strong> - {h.products || 'Chưa có sản phẩm'}{h.invoiceLink ? ' - có hóa đơn' : ''}</span><span className="text-rose-500 font-bold cursor-pointer px-1" onClick={() => { const nextHistories = getPurchaseHistories(formData).filter((_, idx) => idx !== i); setFormData({ ...formData, purchaseHistories: nextHistories, purchaseDates: nextHistories.map(item => item.date).filter(Boolean) }); }}>Gỡ</span></div>)}</div>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hóa đơn đầu ra (Đường dẫn PDF trực tuyến)</label>
-                          <input type="text" placeholder="Dán link lưu trữ tệp tin hóa đơn..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.invoiceLink} onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* NHÓM 4: CHĂM SÓC & TIẾP THỊ */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 4: Chăm sóc & Tiếp thị (Nurturing & Marketing)</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mối quan tâm / Vấn đề cốt lõi đang gặp phải</label>
-                          <input type="text" placeholder="Nhập nhu cầu, điểm đau, bài toán khách hàng cần giải quyết..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.issue} onChange={e => setFormData({ ...formData, issue: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Chương trình khuyến mãi / Sự kiện quà tặng đã áp dụng</label>
-                          <div className="flex gap-1.5">
-                            <input type="date" className="w-1/3 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={promoDate} onChange={e => setPromoDate(e.target.value)} />
-                            <input type="text" placeholder="Tên sự kiện / Chiến dịch giảm giá tặng quà..." className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={promoEvent} onChange={e => setPromoEvent(e.target.value)} />
-                            <button type="button" onClick={() => { if (promoDate && promoEvent) setFormData({ ...formData, promotions: [...formData.promotions, { date: promoDate, event: promoEvent }] }); setPromoDate(''); setPromoEvent(''); }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl hover:bg-indigo-100 border border-indigo-200">Thêm dòng</button>
-                          </div>
-                          <div className="mt-1.5 space-y-1">{formData.promotions.map((p, i) => <div key={i} className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200 shadow-2xs"><span>Dòng thời gian: <strong className="text-indigo-600">{p.date}</strong> — Sự kiện: {p.event}</span><span className="text-rose-500 font-bold cursor-pointer px-1" onClick={() => setFormData({ ...formData, promotions: formData.promotions.filter((_, idx) => idx !== i) })}>Gỡ</span></div>)}</div>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức phân phối chăm sóc (Chọn nhiều phương án)</label>
-                          <div className="flex flex-wrap gap-4 bg-white p-3 rounded-xl border border-slate-200">
-                            {CARE_METHODS.map(m => <label key={m.value} className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer"><input type="checkbox" checked={formData.careMethods.includes(m.value)} onChange={e => setFormData({ ...formData, careMethods: e.target.checked ? [...formData.careMethods, m.value] : formData.careMethods.filter(c => c !== m.value) })} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> {m.label}</label>)}
+                      <>
+                        {/* NHÓM 3: LỊCH SỬ MUA HÀNG & DỊCH VỤ */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 3: Lịch sử mua hàng & Dịch vụ (Sales History)</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số lần đã mua hàng (Chọn 1)</label>
+                              <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.purchaseCount} onChange={e => setFormData({ ...formData, purchaseCount: e.target.value })}>
+                                {['lần 0', 'lần 1', 'lần 2', 'lần 3', 'lần 4', 'lần 5', 'lần n+'].map(v => <option key={v} value={v}>{v}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm - dịch vụ đã mua / tư vấn</label>
+                              <input type="text" placeholder="Nhập thủ công chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Các ngày thực hiện mua hàng (Chọn nhiều ngày)</label>
+                              <div className="flex gap-1.5">
+                                <input type="date" className="flex-1 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={inputPurchaseDate} onChange={e => setInputPurchaseDate(e.target.value)} />
+                                <button type="button" onClick={() => {
+                                  if (inputPurchaseDate && !formData.purchaseDates.includes(inputPurchaseDate)) {
+                                    const nextHistories = [...getPurchaseHistories(formData), { id: `${Date.now()}`, date: inputPurchaseDate, products: formData.products, invoiceLink: formData.invoiceLink, promotions: formData.promotions || [], consultant: formData.consultant, careStaff: formData.careStaff, issue: formData.issue, careMethods: formData.careMethods }];
+                                    setFormData({ ...formData, purchaseDates: [...formData.purchaseDates, inputPurchaseDate], purchaseHistories: nextHistories });
+                                  }
+                                  setInputPurchaseDate('');
+                                }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl hover:bg-indigo-100 transition-all border border-indigo-200">Thêm ngày</button>
+                              </div>
+                              <div className="mt-1.5 space-y-1">{getPurchaseHistories(formData).filter(h => h.date || h.products || h.invoiceLink).map((h, i) => <div key={h.id || i} className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200 shadow-2xs"><span><strong className="text-indigo-600">{h.date || 'Chưa có ngày'}</strong> - {h.products || 'Chưa có sản phẩm'}{h.invoiceLink ? ' - có hóa đơn' : ''}</span><span className="text-rose-500 font-bold cursor-pointer px-1" onClick={() => { const nextHistories = getPurchaseHistories(formData).filter((_, idx) => idx !== i); setFormData({ ...formData, purchaseHistories: nextHistories, purchaseDates: nextHistories.map(item => item.date).filter(Boolean) }); }}>Gỡ</span></div>)}</div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hóa đơn đầu ra (Đường dẫn PDF trực tuyến)</label>
+                              <input type="text" placeholder="Dán link lưu trữ tệp tin hóa đơn..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.invoiceLink} onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })} />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* NHÓM 5: QUẢN LÝ NỘI BỘ */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 5: Phân sự & Quản lý nội bộ (Internal Assignment)</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên trực tiếp đảm nhận tư vấn</label>
-                          <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.consultant} onChange={e => setFormData({ ...formData, consultant: e.target.value })}>
-                            <option value="">-- Click chọn nhân sự phụ trách --</option>
-                            {STAFF_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                          </select>
+                        {/* NHÓM 4: CHĂM SÓC & TIẾP THỊ */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 4: Chăm sóc & Tiếp thị (Nurturing & Marketing)</h4>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mối quan tâm / Vấn đề cốt lõi đang gặp phải</label>
+                              <input type="text" placeholder="Nhập nhu cầu, điểm đau, bài toán khách hàng cần giải quyết..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.issue} onChange={e => setFormData({ ...formData, issue: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Chương trình khuyến mãi / Sự kiện quà tặng đã áp dụng</label>
+                              <div className="flex gap-1.5">
+                                <input type="date" className="w-1/3 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={promoDate} onChange={e => setPromoDate(e.target.value)} />
+                                <input type="text" placeholder="Tên sự kiện / Chiến dịch giảm giá tặng quà..." className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={promoEvent} onChange={e => setPromoEvent(e.target.value)} />
+                                <button type="button" onClick={() => { if (promoDate && promoEvent) setFormData({ ...formData, promotions: [...(formData.promotions || []), { date: promoDate, event: promoEvent }] }); setPromoDate(''); setPromoEvent(''); }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl hover:bg-indigo-100 border border-indigo-200">Thêm dòng</button>
+                              </div>
+                              <div className="mt-1.5 space-y-1">{(formData.promotions || []).map((p, i) => <div key={i} className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200 shadow-2xs"><span>Dòng thời gian: <strong className="text-indigo-600">{p.date}</strong> — Sự kiện: {p.event}</span><span className="text-rose-500 font-bold cursor-pointer px-1" onClick={() => setFormData({ ...formData, promotions: formData.promotions.filter((_, idx) => idx !== i) })}>Gỡ</span></div>)}</div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức phân phối chăm sóc (Chọn nhiều phương án)</label>
+                              <div className="flex flex-wrap gap-4 bg-white p-3 rounded-xl border border-slate-200">
+                                {CARE_METHODS.map(m => <label key={m.value} className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer"><input type="checkbox" checked={(formData.careMethods || []).includes(m.value)} onChange={e => setFormData({ ...formData, careMethods: e.target.checked ? [...(formData.careMethods || []), m.value] : formData.careMethods.filter(c => c !== m.value) })} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> {m.label}</label>)}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên hậu mãi / Chăm sóc khách hàng</label>
-                          <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.careStaff} onChange={e => setFormData({ ...formData, careStaff: e.target.value })}>
-                            <option value="">-- Click chọn nhân sự phụ trách --</option>
-                            {STAFF_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* NHÓM 6: TRẠNG THÁI & GÁN NHÃN */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 6: Trạng thái quy trình & Nhãn phân loại (Status & Tags)</h4>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Gán nhãn phân cấp khách hàng hiện tại</label>
-                        <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.label} onChange={e => setFormData({ ...formData, label: e.target.value })}>
-                          {LABELS.map(l => <option key={l.value} value={l.value} className="text-slate-800 font-normal">{l.label}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    </>
+                        {/* NHÓM 5: QUẢN LÝ NỘI BỘ */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 5: Phân sự & Quản lý nội bộ (Internal Assignment)</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên trực tiếp đảm nhận tư vấn</label>
+                              <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.consultant} onChange={e => setFormData({ ...formData, consultant: e.target.value })}>
+                                <option value="">-- Click chọn nhân sự phụ trách --</option>
+                                {STAFF_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên hậu mãi / Chăm sóc khách hàng</label>
+                              <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.careStaff} onChange={e => setFormData({ ...formData, careStaff: e.target.value })}>
+                                <option value="">-- Click chọn nhân sự phụ trách --</option>
+                                {STAFF_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* NHÓM 6: TRẠNG THÁI & GÁN NHÃN */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 6: Trạng thái quy trình & Nhãn phân loại (Status & Tags)</h4>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Gán nhãn phân cấp khách hàng hiện tại</label>
+                            <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.label} onChange={e => setFormData({ ...formData, label: e.target.value })}>
+                              {LABELS.map(l => <option key={l.value} value={l.value} className="text-slate-800 font-normal">{l.label}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </>
                     )}
-
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* BẢNG DỮ LIỆU CHÍNH - SHOW CHI TIẾT 6 CỘT RIÊNG BIỆT KHÔNG GỘP */}
+            {/* BẢNG DỮ LIỆU CHÍNH */}
             <div className="space-y-4 pt-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap gap-4 items-center shadow-xs">
                 <div className="flex-1 min-w-[280px]">
@@ -581,15 +606,12 @@ export default function CRMSystem() {
                   <tbody className="divide-y divide-slate-200 text-xs">
                     {getRenderedRows().map(cust => (
                       <tr key={cust.id} className="hover:bg-slate-50/60 transition-colors align-top">
-                        
-                        {/* CỘT 1: THÔNG TIN CƠ BẢN */}
                         <td className="px-4 py-4 space-y-1">
                           <div><span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span></div>
                           <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{cust.birthday}</span></div>
                           <div className="text-slate-600"><span className="text-slate-500">Địa chỉ:</span> <p className="inline break-words font-medium">{cust.address || 'Chưa cập nhật'}</p></div>
                         </td>
 
-                        {/* CỘT 2: KÊNH LIÊN HỆ & HỆ SINH THÁI */}
                         <td className="px-4 py-4 space-y-1">
                           <div><span className="text-slate-500">SĐT:</span> <span className="font-bold text-slate-900">{cust.phone}</span></div>
                           <div><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-800 break-all">{cust.email || 'Chưa điền'}</span></div>
@@ -605,11 +627,10 @@ export default function CRMSystem() {
                           </div>
                         </td>
 
-                        {/* CỘT 6: NHÃN TRẠNG THÁI */}
                         <td className="px-4 py-4 text-center">
-                          <select 
-                            value={cust.label} 
-                            onChange={e => setCustomers(customers.map(c => c.id === cust.id ? { ...c, label: e.target.value } : c))} 
+                          <select
+                            value={cust.label}
+                            onChange={e => setCustomers(customers.map(c => c.id === cust.id ? { ...c, label: e.target.value } : c))}
                             className={`text-xs font-bold px-2 py-1.5 rounded-xl border cursor-pointer w-full text-center transition-all ${LABELS.find(l => l.value === cust.label)?.color}`}
                           >
                             {LABELS.map(l => <option key={l.value} value={l.value} className="bg-white text-slate-800 font-normal text-left">{l.label}</option>)}
@@ -617,14 +638,12 @@ export default function CRMSystem() {
                           <p className="text-[9px] text-slate-400 mt-1">Đẩy tự động sang mục xử lý</p>
                         </td>
 
-                        {/* CỘT HÀNH ĐỘNG HỆ THỐNG (ĐÃ BỎ NÚT XÓA) */}
                         <td className="px-4 py-4 text-center">
                           <div className="flex flex-col gap-1 items-center">
                             <button onClick={() => setDetailCustomerId(cust.id)} className="w-full py-1 text-[11px] bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg border border-indigo-600 transition-all">Xem chi tiết</button>
                             <button onClick={() => handleEditClick(cust, 'profile')} className="w-full py-1 text-[11px] bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 rounded-lg border transition-all">Sửa thông tin</button>
                           </div>
                         </td>
-
                       </tr>
                     ))}
                   </tbody>
@@ -632,78 +651,169 @@ export default function CRMSystem() {
               </div>
             </div>
 
+            {/* MODAL CHI TIẾT HOẠT ĐỘNG KHÁCH HÀNG - PHÂN TÁCH ĐỘC LẬP HOÀN TOÀN TỪNG HÀNG THEO CỘT 3, 4, 5 */}
             {detailCustomer && (
               <div className="fixed inset-0 z-50 bg-slate-900/45 px-4 py-6 flex items-center justify-center">
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[88vh] overflow-hidden">
-                  <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[92vh] flex flex-col overflow-hidden">
+                  
+                  {/* HEADER MODAL */}
+                  <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Chi tiết hoạt động: {detailCustomer.fullName}</h3>
-                      <p className="text-xs text-slate-500 mt-1">Hiển thị cột 3, 4, 5 theo mô hình 1 khách hàng có nhiều lịch sử mua hàng.</p>
+                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                        Lịch sử phân cấp & Chăm sóc chi tiết: {detailCustomer.fullName}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Bóc tách chi tiết từng dòng giao dịch độc lập (Cột 3, Cột 4, Cột 5). Mỗi sản phẩm sở hữu một tiến trình xử lý riêng biệt.
+                      </p>
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => { handleEditClick(detailCustomer, 'activity'); setDetailCustomerId(null); }} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all">Chỉnh sửa hoạt động</button>
-                      <button type="button" onClick={() => setDetailCustomerId(null)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition-all">Đóng</button>
+                      <button 
+                        type="button" 
+                        onClick={() => { handleEditClick(detailCustomer, 'activity'); setDetailCustomerId(null); }} 
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-xs"
+                      >
+                        Chỉnh sửa hoạt động
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setDetailCustomerId(null)} 
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition-all"
+                      >
+                        Đóng
+                      </button>
                     </div>
                   </div>
 
-                  <div className="p-5 overflow-y-auto max-h-[calc(88vh-76px)]">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                      <div className="bg-indigo-50/40 border border-indigo-100 rounded-xl p-4 space-y-3">
-                        <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Cột 3: Lịch sử mua hàng</h4>
-                        <div>
-                          <span className="text-slate-500 text-xs">Tổng số lần mua:</span>{' '}
-                          <span className="font-bold text-indigo-600 bg-white px-2 py-0.5 rounded border border-indigo-100">{detailCustomer.purchaseCount}</span>
-                        </div>
-                        <div className="space-y-2">
-                          {getPurchaseHistories(detailCustomer).filter(h => h.date || h.products || h.invoiceLink).length > 0 ? getPurchaseHistories(detailCustomer).filter(h => h.date || h.products || h.invoiceLink).map((history, index) => (
-                            <div key={history.id || index} className="bg-white border border-slate-100 rounded-xl p-3 text-xs space-y-1">
-                              <div className="font-bold text-slate-900">Lần mua #{index + 1}</div>
-                              <div><span className="text-slate-400">Ngày mua:</span> <span className="font-semibold">{history.date || 'Chưa cập nhật'}</span></div>
-                              <div><span className="text-slate-400">Sản phẩm/dịch vụ:</span> <span className="font-medium">{history.products || detailCustomer.products || 'Chưa có thông tin'}</span></div>
-                              {history.invoiceLink && <a href={history.invoiceLink} target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline font-semibold block">Xem File hóa đơn (PDF)</a>}
-                            </div>
-                          )) : (
-                            <div className="text-xs text-slate-400 italic bg-white border border-slate-100 rounded-xl p-3">Chưa có lịch sử mua hàng.</div>
-                          )}
+                  {/* BODY MODAL - CHUẨN MÔ HÌNH ROW-BY-ROW CHO TỪNG GIAO DỊCH ĐỘC LẬP */}
+                  <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+                      <div className="px-4 py-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+                        <span className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Phân rã giao dịch chi tiết hệ thống</span>
+                        <div className="text-xs text-slate-500 font-medium">
+                          Tổng số lần giao dịch: <span className="font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded ml-1">{detailCustomer.purchaseCount}</span>
                         </div>
                       </div>
+                      
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse text-xs min-w-[1400px]">
+                          <thead>
+                            <tr className="bg-slate-50/70 border-b border-slate-200 font-bold text-slate-600 uppercase tracking-wider text-[10px]">
+                              {/* CỘT CHUNG */}
+                              <th className="px-4 py-3.5 text-center w-12 bg-slate-50/40">STT</th>
+                              
+                              {/* NHÓM CỘT 3: LỊCH SỬ MUA HÀNG (SALES HISTORY) */}
+                              <th className="px-4 py-3.5 w-32 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">Ngày giao dịch</th>
+                              <th className="px-4 py-3.5 w-60 bg-indigo-50/20 text-indigo-900">Sản phẩm / Dịch vụ</th>
+                              <th className="px-4 py-3.5 text-center w-24 bg-indigo-50/20 text-indigo-900">Hóa đơn</th>
 
-                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Cột 4: Chăm sóc & tiếp thị</h4>
-                        <div className="bg-white p-3 rounded-xl border border-slate-100 text-xs">
-                          <span className="text-slate-400 font-semibold block">Mối quan tâm / Vấn đề gặp phải:</span>
-                          <p className="italic text-slate-700 break-words mt-1">{detailCustomer.issue || 'Chưa ghi chú vấn đề'}</p>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-semibold block text-xs mb-1">Phương thức tiếp cận:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {detailCustomer.careMethods.length > 0 ? detailCustomer.careMethods.map(m => (
-                              <span key={m} className="bg-white border text-slate-600 px-2 py-1 rounded-md text-[10px]">{m}</span>
-                            )) : <span className="text-slate-300 italic text-xs">Trống</span>}
-                          </div>
-                        </div>
-                        {detailCustomer.promotions.length > 0 && (
-                          <div className="space-y-1 border-l border-slate-300 pl-3">
-                            <span className="text-slate-400 font-semibold block text-xs">Sự kiện ưu đãi áp dụng:</span>
-                            {detailCustomer.promotions.map((p, i) => (
-                              <div key={i} className="text-xs text-slate-600"><strong>{p.date}</strong>: {p.event}</div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                              {/* NHÓM CỘT 4: CHĂM SÓC & TIẾP THỊ (NURTURING & MARKETING) */}
+                              <th className="px-4 py-3.5 w-64 border-l border-slate-200 bg-amber-50/20 text-amber-900">Mối quan tâm / Điểm đau (Issue)</th>
+                              <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Chi Chiến dịch / Quà tặng áp dụng</th>
+                              <th className="px-4 py-3.5 w-48 bg-amber-50/20 text-amber-900">Kênh tiếp cận</th>
 
-                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Cột 5: Quản lý nội bộ</h4>
-                        <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-3 text-xs">
-                          <div>
-                            <span className="text-slate-400 block">Nhân viên tư vấn trực tiếp:</span>
-                            <span className="text-slate-800 font-semibold">{STAFF_OPTIONS.find(s => s.value === detailCustomer.consultant)?.label || 'Chưa phân phối'}</span>
-                          </div>
-                          <div className="border-t border-slate-200 pt-3">
-                            <span className="text-slate-400 block">Nhân viên chăm sóc khách hàng:</span>
-                            <span className="text-slate-800 font-semibold">{STAFF_OPTIONS.find(s => s.value === detailCustomer.careStaff)?.label || 'Chưa phân phối'}</span>
-                          </div>
-                        </div>
+                              {/* NHÓM CỘT 5: PHÂN SỰ NỘI BỘ (INTERNAL ASSIGNMENT) */}
+                              <th className="px-4 py-3.5 w-44 border-l border-slate-200 bg-emerald-50/20 text-emerald-900">Nhân sự tư vấn</th>
+                              <th className="px-4 py-3.5 w-44 bg-emerald-50/20 text-emerald-900">Người chăm sóc (Staff)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 bg-white">
+                            {getPurchaseHistories(detailCustomer).filter(h => h.date || h.products || h.invoiceLink).length > 0 ? (
+                              getPurchaseHistories(detailCustomer)
+                                .filter(h => h.date || h.products || h.invoiceLink)
+                                .map((history, index) => (
+                                  <tr key={history.id || index} className="hover:bg-slate-50/40 transition-colors align-top divide-x divide-slate-100">
+                                    <td className="px-4 py-4 font-semibold text-slate-400 text-center">{index + 1}</td>
+                                    
+                                    {/* CỘT 3 */}
+                                    <td className="px-4 py-4 font-bold text-slate-900 whitespace-nowrap border-l border-slate-200 bg-indigo-50/5">
+                                      {history.date || '---'}
+                                    </td>
+                                    <td className="px-4 py-4 text-slate-800 font-bold leading-relaxed break-words bg-indigo-50/5">
+                                      {history.products || '---'}
+                                    </td>
+                                    <td className="px-4 py-4 text-center whitespace-nowrap bg-indigo-50/5">
+                                      {history.invoiceLink ? (
+                                        <a href={history.invoiceLink} target="_blank" rel="noreferrer" className="text-indigo-600 hover:text-indigo-700 font-bold underline">Xem PDF</a>
+                                      ) : (
+                                        <span className="text-slate-300 italic">Trống</span>
+                                      )}
+                                    </td>
+
+                                    {/* CỘT 4 */}
+                                    <td className="px-4 py-4 text-slate-700 font-medium leading-relaxed break-words border-l border-slate-200 bg-amber-50/5">
+                                      {history.issue || detailCustomer.issue || <span className="text-slate-400 italic">Chưa ghi nhận</span>}
+                                    </td>
+                                    <td className="px-4 py-4 text-slate-600 leading-relaxed break-words bg-amber-50/5">
+                                      {history.promotions && history.promotions.length > 0 ? (
+                                        history.promotions.map((p, idx) => (
+                                          <div key={idx} className="mb-1.5 last:mb-0">
+                                            <span className="inline-block bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 text-[10px] font-bold mr-1">{p.date}</span>
+                                            <span className="font-medium">{p.event}</span>
+                                          </div>
+                                        ))
+                                      ) : detailCustomer.promotions && detailCustomer.promotions.length > 0 ? (
+                                        detailCustomer.promotions.map((p, idx) => (
+                                          <div key={idx} className="mb-1.5 last:mb-0">
+                                            <span className="inline-block bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 text-[10px] font-bold mr-1">{p.date}</span>
+                                            <span className="font-medium">{p.event}</span>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <span className="text-slate-400 italic">Không áp dụng</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-4 bg-amber-50/5">
+                                      <div className="flex flex-wrap gap-1">
+                                        {history.careMethods && history.careMethods.length > 0 ? (
+                                          history.careMethods.map(m => (
+                                            <span key={m} className="bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold shadow-3xs">{m}</span>
+                                          ))
+                                        ) : detailCustomer.careMethods && detailCustomer.careMethods.length > 0 ? (
+                                          detailCustomer.careMethods.map(m => (
+                                            <span key={m} className="bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold shadow-3xs">{m}</span>
+                                          ))
+                                        ) : (
+                                          <span className="text-slate-300 italic">Trống</span>
+                                        )}
+                                      </div>
+                                    </td>
+
+                                    {/* CỘT 5 */}
+                                    <td className="px-4 py-4 whitespace-nowrap border-l border-slate-200 bg-emerald-50/5">
+                                      {history.consultant ? (
+                                        <span className="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                                          {STAFF_OPTIONS.find(s => s.value === history.consultant)?.label || history.consultant}
+                                        </span>
+                                      ) : detailCustomer.consultant ? (
+                                        <span className="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                                          {STAFF_OPTIONS.find(s => s.value === detailCustomer.consultant)?.label || detailCustomer.consultant}
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 italic">Chưa chỉ định</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap bg-emerald-50/5">
+                                      {history.careStaff ? (
+                                        <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                                          {STAFF_OPTIONS.find(s => s.value === history.careStaff)?.label || history.careStaff}
+                                        </span>
+                                      ) : detailCustomer.careStaff ? (
+                                        <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                                          {STAFF_OPTIONS.find(s => s.value === detailCustomer.careStaff)?.label || detailCustomer.careStaff}
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 italic">Chưa chỉ định</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))
+                            ) : (
+                              <tr>
+                                <td colSpan="8" className="text-xs text-slate-400 italic p-6 text-center">Chưa có lịch sử giao dịch phân tách độc lập.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>
@@ -713,7 +823,7 @@ export default function CRMSystem() {
           </>
         )}
 
-        {/* TAB 2: QUẢN LÝ CHĂM SÓC KHÁCH HÀNG (STAFF XỬ LÝ) */}
+        {/* TAB 2: CHĂM SÓC KHÁCH HÀNG (STAFF XỬ LÝ) */}
         {currentTab === 1 && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap gap-4 items-center shadow-xs">
@@ -774,14 +884,14 @@ export default function CRMSystem() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <Select 
-                            placeholder="Chọn mẫu chuỗi chăm sóc gợi ý..." 
-                            options={CONTENT_SUGGESTIONS} 
-                            isClearable 
-                            isSearchable 
-                            value={CONTENT_SUGGESTIONS.find(opt => opt.value === care.careContent) || null} 
-                            onChange={(opt) => updateCareData(care.id, { careContent: opt ? opt.value : '' })} 
-                            className="text-xs" 
+                          <Select
+                            placeholder="Chọn mẫu chuỗi chăm sóc gợi ý..."
+                            options={CONTENT_SUGGESTIONS}
+                            isClearable
+                            isSearchable
+                            value={CONTENT_SUGGESTIONS.find(opt => opt.value === care.careContent) || null}
+                            onChange={(opt) => updateCareData(care.id, { careContent: opt ? opt.value : '' })}
+                            className="text-xs"
                           />
                           <textarea placeholder="Ghi chú tay phản hồi của khách hàng (Lý do chưa chốt, hẹn thời gian gọi lại...)" className="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" rows={2} value={care.careContentCustom || ''} onChange={e => updateCareData(care.id, { careContentCustom: e.target.value })} />
                         </td>
