@@ -374,9 +374,9 @@ export default function CRMSystem() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên hậu mãi</label>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên chăm sóc</label>
                       <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.careStaff} onChange={e => setFormData({ ...formData, careStaff: e.target.value })}>
-                        <option value="">-- Chọn nhân sự hậu mãi --</option>
+                        <option value="">-- Chọn nhân sự chăm sóc --</option>
                         {STAFF_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                       </select>
                     </div>
