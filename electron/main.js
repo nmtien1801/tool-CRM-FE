@@ -82,7 +82,7 @@ const createWindow = () => {
         },
         {
           label: "Quản lý chăm sóc khách hàng (CSM)",
-          click: () => mainWindow.webContents.send("navigate", "/crm"),
+          click: () => mainWindow.webContents.send("navigate", "/csm"),
         },
       ],
     },
@@ -95,7 +95,7 @@ const createWindow = () => {
         },
         {
           label: "Quản lý xuất kho",
-          click: () => mainWindow.webContents.send("navigate", "/crm"),
+          click: () => mainWindow.webContents.send("navigate", "/csm"),
         },
       ],
     },

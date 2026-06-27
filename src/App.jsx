@@ -5,7 +5,8 @@ import { AuthProvider } from './context/AuthContext';
 import Login from './page/Login';
 import Dashboard from './page/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
-import NotificationPage from './page/NotificationPage';
+import ThongBao from './page/ThongBao';
+import ChamSocKhachHang from './page/ChamSocKhachHang';
 
 // ─────────────────────────────────────────────
 // Component con — nằm TRONG <Router> nên dùng được useNavigate
@@ -32,7 +33,7 @@ function AppRoutes() {
       {/* Route Đăng nhập */}
       <Route path="/login" element={<Login />} />
 
-      {/* Route Dashboard (Trang chính) - Protected */}
+      {/* Route Dashboard (Trang chính) - CRM */}
       <Route
         path="/dashboard"
         element={
@@ -42,12 +43,22 @@ function AppRoutes() {
         }
       />
 
+      {/* Route CSM */}
+      <Route
+        path="/csm"
+        element={
+          <ProtectedRoute>
+            <ChamSocKhachHang />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Route Notification */}
       <Route
         path="/Notification"
         element={
           <ProtectedRoute>
-            <NotificationPage />
+            <ThongBao />
           </ProtectedRoute>
         }
       />

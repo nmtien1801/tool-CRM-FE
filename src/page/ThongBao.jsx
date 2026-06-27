@@ -1,9 +1,10 @@
 import React from 'react';
 import { Bell } from 'lucide-react';
 
-export default function NotificationPage({ birthdayList, onNavigateToCare }) {
+export default function NotificationPage({ birthdayList = [], onNavigateToCare }) {
   return (
     <div className="space-y-6">
+      {/* Header nhắc nhở */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
@@ -21,18 +22,19 @@ export default function NotificationPage({ birthdayList, onNavigateToCare }) {
         </span>
       </div>
 
+      {/* Danh sách sinh nhật */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
             Danh sách sinh nhật hôm nay
           </span>
           <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100">
-            {birthdayList.length} Khách hàng
+            {birthdayList?.length || 0} Khách hàng
           </span>
         </div>
 
         <div className="divide-y divide-slate-200">
-          {birthdayList.length > 0 ? (
+          {birthdayList && birthdayList.length > 0 ? (
             birthdayList.map((customer) => (
               <div
                 key={customer.id}
@@ -45,6 +47,7 @@ export default function NotificationPage({ birthdayList, onNavigateToCare }) {
                       🎂 Sinh nhật
                     </span>
                   </h4>
+                  
                   <div className="text-xs text-slate-500 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1 pt-0.5">
                     <div>
                       <span className="text-slate-400">Số điện thoại:</span>{' '}
@@ -59,6 +62,7 @@ export default function NotificationPage({ birthdayList, onNavigateToCare }) {
                       <span className="font-medium text-slate-800">{customer.email || '---'}</span>
                     </div>
                   </div>
+
                   {customer.address && (
                     <p className="text-xs text-slate-500">
                       <span className="text-slate-400">Địa chỉ:</span> {customer.address}

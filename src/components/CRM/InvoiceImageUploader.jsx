@@ -177,22 +177,28 @@ export default function InvoiceImageUploader({ onExtracted }) {
       // Trả kết quả ra ngoài form chính
       onExtracted({
         fullName: extractedName,
-        dob: extractedDob,
+        birthday: extractedDob, // Đổi từ dob -> birthday
         address: extractedAddress,
         phone: extractedPhone,
         email: extractedEmail,
         facebook: extractedFacebook,
         ecosystem: extractedEcosystem,
         issue: extractedIssue || (extractedProducts ? `[AI quét biên lai]: ${extractedProducts}. Nhu cầu hệ thống tự lưu.` : ''),
-        purchaseCount: extractedPurchaseCount,
+
+        // Xử lý purchaseCount về dạng Number như CRMSystem mong muốn
+        purchaseCount: extractedPurchaseCount ? (parseInt(extractedPurchaseCount.replace(/\D/g, ''), 10) || 1) : 1,
+
         purchaseDates: extractedPurchaseDates.length > 0 ? extractedPurchaseDates : [''],
         products: extractedProducts,
         careMethods: extractedCareMethods,
-        promotionTimeline: extractedPromotion,
-        salesConsultant: extractedSalesConsultant,
-        csConsultant: extractedCsConsultant,
+
+        // Đổi promotionTimeline -> promotions và đưa về cấu trúc mảng object [{ event: ... }]
+        promotions: extractedPromotion ? [{ event: extractedPromotion }] : [],
+
+        consultant: extractedSalesConsultant, // Đổi từ salesConsultant -> consultant
+        careStaff: extractedCsConsultant,     // Đổi từ csConsultant -> careStaff
         invoiceLink: extractedInvoiceLink,
-        customerLabel: 'Đã mua hàng'
+        label: 'Đã mua hàng'                  // Đổi từ customerLabel -> label
       });
 
       alert('AI đã hoàn tất phân tích hình ảnh và tự động điền các trường khớp từ khóa!');
@@ -210,7 +216,7 @@ export default function InvoiceImageUploader({ onExtracted }) {
       URL.revokeObjectURL(imagePreview); // Giải phóng bộ nhớ vùng nhận preview
     }
     setImagePreview(null);
-    
+
     // Reset lại ô input file để nếu user chọn lại đúng file cũ thì vẫn kích hoạt onChange
     const fileInput = document.getElementById('vps-ocr-upload');
     if (fileInput) fileInput.value = '';
@@ -225,7 +231,7 @@ export default function InvoiceImageUploader({ onExtracted }) {
     <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
       <div>
         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1 text-indigo-600">
-          Hình ảnh hóa đơn
+          Hình ảnh hóa đơn/ form khách hàng
         </h3>
         <p className="text-xs text-slate-400 mb-4">
           Tải tài liệu lên để tự động phân tích trích xuất dữ liệu điền vào biểu mẫu.
@@ -248,7 +254,7 @@ export default function InvoiceImageUploader({ onExtracted }) {
               >
                 Thay đổi file
               </label>
-              
+
               <button
                 type="button"
                 onClick={handleRemoveImage}
