@@ -66,6 +66,10 @@ const createWindow = () => {
       label: "File",
       submenu: [
         {
+          label: "Dashboard",
+          click: () => mainWindow.webContents.send("navigate", "/dashboard"),
+        },
+        {
           label: "Thông báo",
           click: () => mainWindow.webContents.send("navigate", "/Notification"),
         },
@@ -78,7 +82,7 @@ const createWindow = () => {
       submenu: [
         {
           label: "Quản lý khách hàng (CMR)",
-          click: () => mainWindow.webContents.send("navigate", "/dashboard"),
+          click: () => mainWindow.webContents.send("navigate", "/scr"),
         },
         {
           label: "Quản lý chăm sóc khách hàng (CSM)",

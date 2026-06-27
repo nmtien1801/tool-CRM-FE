@@ -3,10 +3,11 @@ import { HashRouter as Router, Routes, Route, Navigate, useNavigate } from 'reac
 import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import Login from './page/Login';
-import Dashboard from './page/Dashboard';
+import QuanLyKhachHang from './page/QuanLyKhachHang';
 import ProtectedRoute from './components/ProtectedRoute';
 import ThongBao from './page/ThongBao';
 import ChamSocKhachHang from './page/ChamSocKhachHang';
+import Dashboard from './page/Dashboard';
 
 // ─────────────────────────────────────────────
 // Component con — nằm TRONG <Router> nên dùng được useNavigate
@@ -33,12 +34,22 @@ function AppRoutes() {
       {/* Route Đăng nhập */}
       <Route path="/login" element={<Login />} />
 
-      {/* Route Dashboard (Trang chính) - CRM */}
+      {/* Route Dashboard - chỉ admin*/}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Route QuanLyKhachHang - CRM */}
+      <Route
+        path="/crm"
+        element={
+          <ProtectedRoute>
+            <QuanLyKhachHang />
           </ProtectedRoute>
         }
       />
