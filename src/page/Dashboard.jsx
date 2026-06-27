@@ -3,6 +3,7 @@ import { Edit, Trash2 } from 'lucide-react';
 import Select from 'react-select';
 import CustomerDetailModal from '../components/CRM/CustomerDetailModal';
 import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
+import ExpandableInput from '../components/ExpandableInput';
 import {
   ECOSYSTEM_OPTIONS,
   LABELS,
@@ -328,7 +329,11 @@ export default function CRMSystem() {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mối quan tâm / Vấn đề</label>
-                      <input type="text" placeholder="Nhu cầu khách hàng..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.issue} onChange={e => setFormData({ ...formData, issue: e.target.value })} />
+                      <ExpandableInput
+                        value={formData.issue}
+                        onChange={(newValue) => setFormData({ ...formData, issue: newValue })}
+                        placeholder="Nhu cầu khách hàng..."
+                      />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khuyến mãi áp dụng</label>

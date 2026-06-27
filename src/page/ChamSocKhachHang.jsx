@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Save, Search } from 'lucide-react';
-// Import dữ liệu từ file CRM.js cùng thư mục
+import ExpandableInput from '../components/ExpandableInput';
 import { INITIAL_CUSTOMERS, LABELS, STAFF_OPTIONS } from './CRM';
 
 export default function ChamSocKhachHangPage() {
@@ -311,23 +311,21 @@ export default function ChamSocKhachHangPage() {
 
                                         {/* 5. Nội dung đã chăm sóc (Gán giá trị cụ thể từ đơn hàng và cho sửa đổi) */}
                                         <td className="px-4 py-4">
-                                            <input
-                                                type="text"
+                                            <ExpandableInput
                                                 value={careContent}
-                                                onChange={(e) => handleInputChange(row.historyId, 'careContent', e.target.value)}
+                                                onChange={(newValue) => handleInputChange(row.historyId, 'careContent', newValue)}
                                                 placeholder="Nhập nội dung chăm sóc..."
-                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                title={`Nội dung chăm sóc - Khách hàng: ${row.fullName}`}
                                             />
                                         </td>
 
                                         {/* 6. Hành vi có thể đo lường */}
                                         <td className="px-4 py-4">
-                                            <input
-                                                type="text"
+                                            <ExpandableInput
                                                 value={behaviorMetric}
-                                                onChange={(e) => handleInputChange(row.historyId, 'behaviorMetric', e.target.value)}
+                                                onChange={(newValue) => handleInputChange(row.historyId, 'behaviorMetric', newValue)}
                                                 placeholder="Nhập tay hành vi..."
-                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md bg-white focus:outline-hidden focus:border-indigo-500"
+                                                title={`Hành vi có thể đo lường - Khách hàng: ${row.fullName}`}
                                             />
                                         </td>
 
