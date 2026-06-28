@@ -81,8 +81,8 @@ const createWindow = () => {
       label: "Khách hàng",
       submenu: [
         {
-          label: "Quản lý khách hàng (CMR)",
-          click: () => mainWindow.webContents.send("navigate", "/scr"),
+          label: "Quản lý khách hàng (CRM)",
+          click: () => mainWindow.webContents.send("navigate", "/crm"),
         },
         {
           label: "Quản lý chăm sóc khách hàng (CSM)",
@@ -90,19 +90,19 @@ const createWindow = () => {
         },
       ],
     },
-    {
-      label: "Kho hàng",
-      submenu: [
-        {
-          label: "Quản lý kho hàng",
-          click: () => mainWindow.webContents.send("navigate", "/dashboard"),
-        },
-        {
-          label: "Quản lý xuất kho",
-          click: () => mainWindow.webContents.send("navigate", "/csm"),
-        },
-      ],
-    },
+    // {
+    //   label: "Kho hàng",
+    //   submenu: [
+    //     {
+    //       label: "Quản lý kho hàng",
+    //       click: () => mainWindow.webContents.send("navigate", "/dashboard"),
+    //     },
+    //     {
+    //       label: "Quản lý xuất kho",
+    //       click: () => mainWindow.webContents.send("navigate", "/csm"),
+    //     },
+    //   ],
+    // },
   ];
 
   if (isDev) {

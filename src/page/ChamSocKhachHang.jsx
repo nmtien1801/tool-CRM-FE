@@ -1,33 +1,30 @@
 import React, { useState } from 'react';
-import { Save, Search } from 'lucide-react';
+import { Save, Search, Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import ExpandableInput from '../components/ExpandableInput';
 import { INITIAL_CUSTOMERS, LABELS, STAFF_OPTIONS } from './CRM';
+import { getBirthdayCustomers } from './ThongBao';
 
 export default function ChamSocKhachHangPage() {
-    // Quản lý danh sách khách hàng gốc tại Page này
+    const navigate = useNavigate();
+
+    // Số lượng sinh nhật hôm nay – tính 1 lần khi render
+    const birthdayCount = getBirthdayCustomers(INITIAL_CUSTOMERS).length;
+
     const [customersData, setCustomersData] = useState(INITIAL_CUSTOMERS);
-
-    // Quản lý trạng thái chỉnh sửa tạm thời theo từng đơn hàng/lịch sử (Inline Editing dùng historyId làm key)
     const [careStates, setCareStates] = useState({});
-
-    // States quản lý bộ lọc dữ liệu (Search & Filter)
     const [searchTerm, setSearchTerm] = useState('');
     const [filterLabel, setFilterLabel] = useState('');
-    const [filterCareStatus, setFilterCareStatus] = useState('all'); // all, cared, not_cared
-    const [filterStaff, setFilterStaff] = useState(''); // Bộ lọc theo nhân viên CSKH
+    const [filterCareStatus, setFilterCareStatus] = useState('all');
+    const [filterStaff, setFilterStaff] = useState('');
 
-    // Hàm xử lý khi thay đổi dữ liệu trên từng dòng lịch sử đơn hàng
     const handleInputChange = (historyId, field, value) => {
         setCareStates(prev => ({
             ...prev,
-            [historyId]: {
-                ...prev[historyId],
-                [field]: value
-            }
+            [historyId]: { ...prev[historyId], [field]: value }
         }));
     };
 
-    // Hàm lưu thông tin: Cập nhật chính xác vào item cụ thể trong mảng purchaseHistories của khách hàng đó
     const handleSaveRow = (customerId, historyId) => {
         const rowData = careStates[historyId];
         if (rowData) {
@@ -45,8 +42,6 @@ export default function ChamSocKhachHangPage() {
                             }
                             return hist;
                         });
-
-                        // Cập nhật trạng thái chung của khách hàng nếu cần (ví dụ: lấy trạng thái check của dòng vừa lưu)
                         return {
                             ...cust,
                             isCared: rowData.isCared ?? cust.isCared ?? false,
@@ -56,27 +51,22 @@ export default function ChamSocKhachHangPage() {
                     return cust;
                 })
             );
-
-            // Xóa trạng thái chỉnh sửa tạm thời của dòng historyId sau khi lưu xong
             setCareStates(prev => {
                 const updated = { ...prev };
                 delete updated[historyId];
                 return updated;
             });
-
             alert('Đã cập nhật thông tin chăm sóc cho đơn hàng thành công!');
         }
     };
 
-    // --- LOGIC PHẲNG HÓA DỮ LIỆU & LỌC TÌM KIẾM ---
-    // Bước 1: Duyệt qua tất cả khách hàng, tách purchaseHistories ra thành các dòng độc lập để render
     const allRowItems = [];
     customersData.forEach(customer => {
         const histories = customer.purchaseHistories || [];
         if (histories.length > 0) {
             histories.forEach(history => {
                 allRowItems.push({
-                    ...customer, // Giữ thông tin chung: tên, sđt, email, địa chỉ
+                    ...customer,
                     historyId: history.id,
                     historyDate: history.date,
                     products: history.products,
@@ -91,7 +81,6 @@ export default function ChamSocKhachHangPage() {
                 });
             });
         } else {
-            // Trường hợp khách hàng chưa có lịch sử mua hàng/chăm sóc nào, vẫn tạo 1 dòng trống để hiển thị
             allRowItems.push({
                 ...customer,
                 historyId: `empty-${customer.id}`,
@@ -106,52 +95,59 @@ export default function ChamSocKhachHangPage() {
         }
     });
 
-    // Bước 2: Lọc dữ liệu dựa trên danh sách các dòng đã được tách riêng biệt
     const filteredRows = allRowItems.filter(row => {
         const careMethods = row.careMethods || [];
-
-        // Xác định điều kiện ẩn/hiện thông tin theo từng dòng lịch sử cụ thể
         const showPhone = careMethods.some(m => ['Zalo OA', 'SMS', 'Telesale'].includes(m));
         const showEmail = careMethods.includes('Email Marketing');
-
-        // 1. Tìm kiếm đồng thời theo Họ tên, SĐT (nếu hiển thị), Email (nếu hiển thị)
         const matchesSearch =
             row.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (showPhone && row.phone && row.phone.includes(searchTerm)) ||
             (showEmail && row.email && row.email.toLowerCase().includes(searchTerm.toLowerCase()));
-
-        // 2. Lọc theo Giai đoạn khách hàng
         const matchesLabel = filterLabel === '' || row.label === filterLabel;
-
-        // 3. Lọc theo Trạng thái chăm sóc (đọc từ trạng thái chỉnh sửa tạm hoặc dữ liệu lưu của dòng đó)
         const currentState = careStates[row.historyId] || {};
         const isCaredNow = currentState.isCared ?? row.isCared;
         let matchesCareStatus = true;
         if (filterCareStatus === 'cared') matchesCareStatus = isCaredNow === true;
         if (filterCareStatus === 'not_cared') matchesCareStatus = isCaredNow === false;
-
-        // 4. Lọc chuẩn xác theo Nhân viên phụ trách riêng của dòng đơn hàng đó
         const matchesStaff = filterStaff === '' || row.careStaff === filterStaff;
-
         return matchesSearch && matchesLabel && matchesCareStatus && matchesStaff;
     });
 
     return (
         <div className="w-full bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 space-y-6">
 
-            {/* Tiêu đề Trang */}
-            <div>
-                <h3 className="text-xl font-bold text-slate-900">
-                    Quản lý Chăm sóc Khách hàng
-                </h3>
-                <p className="text-sm text-slate-600 mt-1">
-                    Trang làm việc dành cho nhân viên vận hành hệ thống. Mỗi dòng ứng với một lịch sử giao dịch độc lập.
-                </p>
+            {/* Tiêu đề + Icon chuông sinh nhật */}
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h3 className="text-xl font-bold text-slate-900">
+                        Quản lý Chăm sóc Khách hàng
+                    </h3>
+                    <p className="text-sm text-slate-600 mt-1">
+                        Trang làm việc dành cho nhân viên vận hành hệ thống.
+                    </p>
+                </div>
+
+                {/* Bell button */}
+                <button
+                    onClick={() => navigate('/Notification')}
+                    title={
+                        birthdayCount > 0
+                            ? `${birthdayCount} khách hàng có sinh nhật hôm nay`
+                            : 'Không có sinh nhật hôm nay'
+                    }
+                    className="relative flex-shrink-0 p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 transition-colors group"
+                >
+                    <Bell className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
+                    {birthdayCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none shadow-sm">
+                            {birthdayCount > 99 ? '99+' : birthdayCount}
+                        </span>
+                    )}
+                </button>
             </div>
 
             {/* Bộ lọc Tìm kiếm nâng cao */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-150">
-                {/* Lọc text */}
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Tìm kiếm thông tin</label>
                     <div className="relative">
@@ -165,8 +161,6 @@ export default function ChamSocKhachHangPage() {
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     </div>
                 </div>
-
-                {/* Lọc Giai đoạn */}
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Giai đoạn khách hàng</label>
                     <select
@@ -180,8 +174,6 @@ export default function ChamSocKhachHangPage() {
                         ))}
                     </select>
                 </div>
-
-                {/* Lọc Nhân viên CSKH (Giờ đây lọc chuẩn xác theo từng dòng) */}
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Nhân viên CSKH</label>
                     <select
@@ -195,8 +187,6 @@ export default function ChamSocKhachHangPage() {
                         ))}
                     </select>
                 </div>
-
-                {/* Lọc Trạng thái check */}
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Trạng thái chăm sóc</label>
                     <select
@@ -211,7 +201,7 @@ export default function ChamSocKhachHangPage() {
                 </div>
             </div>
 
-            {/* Bảng hiển thị dữ liệu */}
+            {/* Bảng dữ liệu */}
             <div className="overflow-x-auto border border-slate-200 rounded-xl">
                 <table className="w-full text-left border-collapse">
                     <thead>
@@ -231,18 +221,13 @@ export default function ChamSocKhachHangPage() {
                         {filteredRows.length > 0 ? (
                             filteredRows.map((row) => {
                                 const careMethods = row.careMethods || [];
-
-                                // Ép logic ẩn/hiện thông tin liên hệ dựa theo phương thức của ĐƠN HÀNG ĐÓ
                                 const showPhone = careMethods.some(m => ['Zalo OA', 'SMS', 'Telesale'].includes(m));
                                 const showEmail = careMethods.includes('Email Marketing');
                                 const showFacebook = careMethods.includes('Messenger');
-
                                 const currentLabel = LABELS.find(l => l.value === row.label) || {
                                     label: row.label || 'Lạnh',
                                     color: 'bg-gray-100 text-gray-700 border-gray-300'
                                 };
-
-                                // Lấy dữ liệu tạm thời dựa trên historyId độc lập
                                 const currentState = careStates[row.historyId] || {};
                                 const isChecked = currentState.isCared ?? row.isCared;
                                 const careContent = currentState.careContent ?? '';
@@ -250,8 +235,6 @@ export default function ChamSocKhachHangPage() {
 
                                 return (
                                     <tr key={row.historyId} className="hover:bg-slate-50/60 transition-colors">
-
-                                        {/* 1. Thông tin cơ bản */}
                                         <td className="px-4 py-4 space-y-1 bg-slate-50/30">
                                             <div className="text-sm font-bold text-slate-900">{row.fullName}</div>
                                             <div className="text-slate-600">
@@ -263,8 +246,6 @@ export default function ChamSocKhachHangPage() {
                                                 </div>
                                             )}
                                         </td>
-
-                                        {/* 2. Kênh liên hệ */}
                                         <td className="px-4 py-4 space-y-1 text-slate-700 bg-slate-50/30">
                                             <div>
                                                 <span className="text-slate-400 font-medium">SĐT:</span>{' '}
@@ -293,23 +274,17 @@ export default function ChamSocKhachHangPage() {
                                                 )}
                                             </div>
                                         </td>
-
-                                        {/* 3. Giai đoạn khách hàng */}
                                         <td className="px-4 py-4 bg-slate-50/30">
                                             <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold border ${currentLabel.color}`}>
                                                 {currentLabel.label}
                                             </span>
                                         </td>
-
-                                        {/* 4. Sản phẩm - Dịch vụ của chính ĐƠN HÀNG ĐÓ */}
                                         <td className="px-4 py-4 text-slate-900 font-medium bg-slate-50/30 max-w-[200px] truncate" title={row.products}>
                                             <div className="bg-indigo-50 text-indigo-800 px-2 py-1 rounded border border-indigo-100">
                                                 {row.products || '---'}
                                             </div>
                                             <div className="text-[10px] text-slate-400 mt-1">Ngày mua: {row.historyDate}</div>
                                         </td>
-
-                                        {/* 5. Nội dung đã chăm sóc (Gán giá trị cụ thể từ đơn hàng và cho sửa đổi) */}
                                         <td className="px-4 py-4">
                                             <ExpandableInput
                                                 value={careContent}
@@ -318,8 +293,6 @@ export default function ChamSocKhachHangPage() {
                                                 title={`Nội dung chăm sóc - Khách hàng: ${row.fullName}`}
                                             />
                                         </td>
-
-                                        {/* 6. Hành vi có thể đo lường */}
                                         <td className="px-4 py-4">
                                             <ExpandableInput
                                                 value={behaviorMetric}
@@ -328,15 +301,11 @@ export default function ChamSocKhachHangPage() {
                                                 title={`Hành vi có thể đo lường - Khách hàng: ${row.fullName}`}
                                             />
                                         </td>
-
-                                        {/* 7. Nhân viên CSKH (Hiển thị đúng nhân viên phụ trách của ĐƠN HÀNG NÀY) */}
                                         <td className="px-4 py-4 bg-slate-50/30">
                                             <div className="px-2.5 py-1.5 text-slate-800 font-semibold bg-emerald-50/60 rounded-md border border-emerald-200 text-center">
                                                 {STAFF_OPTIONS.find(s => s.value === row.careStaff)?.label || <span className="text-slate-400 italic">-- Chưa gán --</span>}
                                             </div>
                                         </td>
-
-                                        {/* 8. Trạng thái CS */}
                                         <td className="px-4 py-4 text-center">
                                             <label className="flex flex-col items-center justify-center gap-1 cursor-pointer select-none">
                                                 <input
@@ -350,8 +319,6 @@ export default function ChamSocKhachHangPage() {
                                                 </span>
                                             </label>
                                         </td>
-
-                                        {/* 9. Nút Thao tác lưu (Sticky cố định theo từng dòng lịch sử đơn hàng) */}
                                         <td className="px-4 py-4 text-center sticky right-0 bg-white shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
                                             <button
                                                 type="button"
@@ -365,7 +332,6 @@ export default function ChamSocKhachHangPage() {
                                                 <Save className="w-3 h-3" /> Lưu
                                             </button>
                                         </td>
-
                                     </tr>
                                 );
                             })

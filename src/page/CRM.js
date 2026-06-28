@@ -116,7 +116,7 @@ export const INITIAL_CUSTOMERS = [
   {
     id: 1,
     fullName: "Nguyễn Minh Tiền",
-    birthday: "2000-06-22",
+    birthday: "2000-06-28",
     address: "Quận 1, TP. HCM",
     phone: "0912345678",
     email: "tien.nguyen@gmail.com",
