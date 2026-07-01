@@ -21,8 +21,8 @@ function Login() {
             const response = await ApiAuth.LoginApi({ userName, password });
 
             // Lưu user info vào context (không lưu localStorage)
-            const userData = response.data?.DT || {};
-            if (response.data.EC === 0 && userData) {
+            const userData = response.DT || {};
+            if (response.EC === 0 && userData) {
                 login(userData);
                 // Chuyển hướng đến dashboard sau khi đăng nhập thành công
                 navigate('/crm');

@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
-import { Edit, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Edit, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import Select from 'react-select';
 import CustomerDetailModal from '../components/CRM/CustomerDetailModal';
 import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
 import ExpandableInput from '../components/ExpandableInput';
+import ApiCustomer from '../api/ApiCustomer';
 import {
   ECOSYSTEM_OPTIONS,
   LABELS,
   CARE_METHODS,
   STAFF_OPTIONS,
   PROMO_OPTIONS,
-  EMPTY_CUSTOMER,
-  INITIAL_CUSTOMERS
+  EMPTY_CUSTOMER
 } from './CRM';
 
 const getPurchaseHistories = (customer) => {
@@ -56,7 +56,7 @@ export default function CRMSystem() {
   const [detailCustomerId, setDetailCustomerId] = useState(null);
 
   // ─── STATE QUAN TRỌNG HỆ THỐNG ───
-  const [customers, setCustomers] = useState(INITIAL_CUSTOMERS);
+  const [customers, setCustomers] = useState([]);
   const [formData, setFormData] = useState(EMPTY_CUSTOMER);
   const [promoEvent, setPromoEvent] = useState('');
 
@@ -64,11 +64,57 @@ export default function CRMSystem() {
   const [crmFilterLabel, setCrmFilterLabel] = useState('');
   const [crmFilterEco, setCrmFilterEco] = useState('');
 
+  // ─── STATE PHÂN TRANG (ĐỒNG BỘ THEO RESPONSE BE) ───
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // ─── STATE LOADING & ERROR ───
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState(null);
+
   const [careData, setCareData] = useState([]);
 
   const todayStr = new Date().toISOString().slice(5, 10);
   const birthdayList = customers.filter(c => c.birthday && c.birthday.slice(5, 10) === todayStr);
   const birthdayCount = birthdayList.length;
+
+  // ─── HOOK FETCH DATA TỪ BACKEND (ĐÃ ĐƯỢC SỬA) ───
+  const fetchCustomers = async () => {
+    setIsLoading(true);
+    setApiError(null);
+    try {
+      const response = await ApiCustomer.getAllCustomers({
+        page: currentPage,
+        size: pageSize,
+        search: crmSearch,
+        label: crmFilterLabel,
+        ecosystem: crmFilterEco
+      });
+
+      // Sửa lại logic check chuẩn cấu trúc { EC, EM, DT } của Backend mới
+      if (response && response.EC === 0 && response.DT) {
+        const { rows, pagination } = response.DT;
+
+        setCustomers(rows || []);
+        setTotalItems(pagination?.totalItems || 0);
+        setTotalPages(pagination?.totalPages || 1);
+        setCurrentPage(pagination?.currentPage || 1);
+      } else {
+        setApiError(response?.EM || "Không thể bóc tách dữ liệu từ máy chủ.");
+      }
+    } catch (error) {
+      console.error("Lỗi khi fetch dữ liệu khách hàng:", error);
+      setApiError("Không thể tải dữ liệu từ máy chủ. Vui lòng thử lại sau.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [currentPage, pageSize, crmSearch, crmFilterLabel, crmFilterEco]);
 
   const updateCareData = (careId, patch) => {
     setCareData(prev => prev.some(item => item.id === careId)
@@ -77,7 +123,6 @@ export default function CRMSystem() {
     );
   };
 
-  // ─── CALLBACK NHẬN DỮ LIỆU TỪ InvoiceImageUploader ───
   const handleOcrExtracted = (fields) => {
     setFormData((prev) => ({
       ...prev,
@@ -96,7 +141,8 @@ export default function CRMSystem() {
     setEditingHistoryId(null);
   };
 
-  const handleSaveData = () => {
+  // ─── LOGIC LƯU DỮ LIỆU QUA API CUSTOMER SERVICE ───
+  const handleSaveData = async () => {
     if (!formData.fullName || !formData.phone || !formData.birthday) {
       alert('Vui lòng nhập tối thiểu Họ và tên, Ngày sinh, Số điện thoại!');
       return;
@@ -144,42 +190,49 @@ export default function CRMSystem() {
       );
     }
 
-    if (editingId) {
-      setCustomers(customers.map(c => {
-        if (c.id !== editingId) return c;
-        return { ...normalizedForm, purchaseHistories: finalHistories, id: editingId };
-      }));
+    const payload = { ...normalizedForm, purchaseHistories: finalHistories };
+
+    try {
+      if (editingId) {
+        await ApiCustomer.updateCustomer(editingId, payload);
+        alert('Đã cập nhật thông tin thành công!');
+      } else {
+        await ApiCustomer.createCustomer(payload);
+        alert('Đã thêm mới thành công!');
+      }
       setEditingId(null);
       setEditingHistoryId(null);
-      alert('Đã cập nhật thông tin thành công!');
-    } else {
-      setCustomers([...customers, { ...normalizedForm, purchaseHistories: finalHistories, id: Date.now() }]);
-      alert('Đã thêm mới thành công!');
+      handleClearForm();
+      fetchCustomers();
+    } catch (error) {
+      console.error("Lỗi khi lưu dữ liệu khách hàng:", error);
+      alert('Lưu dữ liệu thất bại. Vui lòng kiểm tra lại kết nối!');
     }
-    handleClearForm();
   };
 
-  const handleDeleteHistory = (customerId, historyId) => {
+  // ─── LOGIC XÓA LỊCH SỬ QUA API CUSTOMER SERVICE ───
+  const handleDeleteHistory = async (customerId, historyId) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.')) {
       return;
     }
-    setCustomers(prevCustomers =>
-      prevCustomers.map(cust => {
-        if (cust.id !== customerId) return cust;
-        const updatedHistories = (cust.purchaseHistories || []).filter(h => h.id !== historyId);
-        const updatedProducts = updatedHistories.map(h => h.products).filter(Boolean).join(', ');
-        const updatedInvoiceLink = updatedHistories.find(h => h.invoiceLink)?.invoiceLink || '';
-        return {
-          ...cust,
-          purchaseHistories: updatedHistories,
-          purchaseCount: updatedHistories.length,
-          products: updatedProducts,
-          invoiceLink: updatedInvoiceLink,
-          purchaseDates: updatedHistories.map(h => h.date).filter(Boolean)
-        };
-      })
-    );
-    alert('Đã xóa giao dịch thành công!');
+    try {
+      await ApiCustomer.deletePurchaseHistory(customerId, historyId);
+      alert('Đã xóa giao dịch thành công!');
+      fetchCustomers();
+    } catch (error) {
+      console.error("Lỗi khi xóa lịch sử giao dịch:", error);
+      alert('Xóa giao dịch thất bại!');
+    }
+  };
+
+  const handleLabelChange = async (customerId, nextLabel) => {
+    try {
+      await ApiCustomer.patchCustomer(customerId, { label: nextLabel });
+      setCustomers(customers.map(c => c.id === customerId ? { ...c, label: nextLabel } : c));
+    } catch (error) {
+      console.error("Lỗi khi cập nhật nhãn:", error);
+      alert('Không thể cập nhật nhãn trạng thái!');
+    }
   };
 
   const handleEditClick = (customer) => {
@@ -190,13 +243,7 @@ export default function CRMSystem() {
   };
 
   const getRenderedRows = () => {
-    return customers.map(normalizeCustomerData).filter(c => {
-      const purchaseText = getPurchaseHistories(c).map(h => `${h.date} ${h.products} ${h.invoiceLink}`).join(' ');
-      const matchText = crmSearch === '' || c.fullName.toLowerCase().includes(crmSearch.toLowerCase()) || c.phone.includes(crmSearch) || c.email.toLowerCase().includes(crmSearch.toLowerCase()) || c.products.toLowerCase().includes(crmSearch.toLowerCase()) || purchaseText.toLowerCase().includes(crmSearch.toLowerCase()) || c.address.toLowerCase().includes(crmSearch.toLowerCase()) || c.issue.toLowerCase().includes(crmSearch.toLowerCase());
-      const matchLabel = crmFilterLabel === '' || c.label === crmFilterLabel;
-      const matchEco = crmFilterEco === '' || c.ecosystem === crmFilterEco;
-      return matchText && matchLabel && matchEco;
-    });
+    return customers.map(normalizeCustomerData);
   };
 
   const detailCustomer = detailCustomerId ? customers.map(normalizeCustomerData).find(c => c.id === detailCustomerId) : null;
@@ -206,7 +253,7 @@ export default function CRMSystem() {
       <main className="max-w-[1600px] mx-auto px-4 py-8 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
-          {/* ─── KHỐI CHỌN ẢNH (GIỮ NGUYÊN) ─── */}
+          {/* ─── KHỐI CHỌN ẢNH ─── */}
           <InvoiceImageUploader onExtracted={handleOcrExtracted} />
 
           {/* ─── KHỐI THÔNG TIN BIỂU MẪU ─── */}
@@ -287,26 +334,28 @@ export default function CRMSystem() {
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tổng số lần đã mua hàng</label>
                         <input type="number" min="0" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs disabled:bg-slate-100" value={formData.purchaseCount || 0} disabled />
                       </div>
-
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
                         <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.singleDate} onChange={e => setFormData({ ...formData, singleDate: e.target.value })} />
                       </div>
                     </div>
-
                     <div className="flex flex-col justify-end">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
-                        <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
+                          <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn hóa đơn (URL Link)</label>
+                          <input
+                            type="text"
+                            placeholder="Nhập đường dẫn URL hóa đơn tại đây..."
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={formData.invoiceLink}
+                            onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })}
+                          />
+                        </div>
                       </div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn hóa đơn (URL Link)</label>
-                      <input
-                        type="text"
-                        placeholder="Nhập đường dẫn URL hóa đơn tại đây..."
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.invoiceLink}
-                        onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })}
-                      />
                     </div>
                   </div>
                 </div>
@@ -395,61 +444,141 @@ export default function CRMSystem() {
         <div className="space-y-4 pt-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap gap-4 items-center shadow-xs">
             <div className="flex-1 min-w-[280px]">
-              <input type="text" placeholder="Tìm kiếm toàn bộ thông tin..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm" value={crmSearch} onChange={e => setCrmSearch(e.target.value)} />
+              <input type="text" placeholder="Tìm kiếm toàn bộ thông tin..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm" value={crmSearch} onChange={e => { setCrmSearch(e.target.value); setCurrentPage(1); }} />
             </div>
-            <select className="w-[180px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" value={crmFilterLabel} onChange={e => setCrmFilterLabel(e.target.value)}>
+            <select className="w-[180px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" value={crmFilterLabel} onChange={e => { setCrmFilterLabel(e.target.value); setCurrentPage(1); }}>
               <option value="">Lọc theo nhãn gán</option>
               {LABELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
-            <select className="w-[180px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" value={crmFilterEco} onChange={e => setCrmFilterEco(e.target.value)}>
+            <select className="w-[180px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" value={crmFilterEco} onChange={e => { setCrmFilterEco(e.target.value); setCurrentPage(1); }}>
               <option value="">Lọc theo hệ sinh thái</option>
               {ECOSYSTEM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 ml-auto">
+              <span>Hiển thị:</span>
+              <select className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-medium text-slate-700 focus:outline-none" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}>
+                {[5, 10, 20, 50].map(size => <option key={size} value={size}>{size} dòng</option>)}
+              </select>
+            </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[980px] table-fixed">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                  <th className="px-4 py-4 w-72">Thông tin cơ bản</th>
-                  <th className="px-4 py-4 w-72">Kênh liên hệ</th>
-                  <th className="px-4 py-4 w-72">Tổng số lần mua hàng</th>
-                  <th className="px-4 py-4 w-48 text-center">Nhãn trạng thái</th>
-                  <th className="px-4 py-4 w-44 text-center">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-xs">
-                {getRenderedRows().map(cust => (
-                  <tr key={cust.id} className="hover:bg-slate-50/60 transition-colors align-top">
-                    <td className="px-3 py-3 space-y-1">
-                      <span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span>
-                      <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{cust.birthday}</span></div>
-                      <div className="text-slate-600"><span className="text-slate-500">Địa chỉ:</span> <p className="inline break-words font-medium">{cust.address || 'Chưa cập nhật'}</p></div>
-                    </td>
-                    <td className="px-3 py-3 space-y-1">
-                      <div><span className="text-slate-500">SĐT:</span> <span className="font-bold text-slate-900">{cust.phone}</span></div>
-                      <div><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-800 break-all">{cust.email || 'Chưa điền'}</span></div>
-                      <div><span className="text-slate-500">Facebook:</span> {cust.facebook ? <a href={cust.facebook} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium break-all">{cust.facebook}</a> : <span className="text-slate-400 italic">Trống</span>}</div>
-                      <div className="pt-1"><span className="bg-slate-100 border text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px]">{ECOSYSTEM_OPTIONS.find(e => e.value === cust.ecosystem)?.label || 'Chưa chọn'}</span></div>
-                    </td>
-                    <td className="px-3 py-3 space-y-1">
-                      <span className="font-bold text-indigo-600">lần {cust.purchaseCount}</span>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <select value={cust.label} onChange={e => setCustomers(customers.map(c => c.id === cust.id ? { ...c, label: e.target.value } : c))} className={`text-xs font-bold px-2 py-1.5 rounded-xl border cursor-pointer w-full text-center transition-all ${LABELS.find(l => l.value === cust.label)?.color}`}>
-                        {LABELS.map(l => <option key={l.value} value={l.value} className="bg-white text-slate-800 font-normal text-left">{l.label}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <div className="flex flex-col gap-1 items-center">
-                        <button onClick={() => setDetailCustomerId(cust.id)} className="w-full py-1 text-[11px] bg-indigo-600 text-white rounded-lg border border-indigo-600">Xem chi tiết</button>
-                        <button onClick={() => handleEditClick(cust)} className="w-full py-1 text-[11px] bg-slate-100 text-slate-700 rounded-lg border">Sửa thông tin</button>
-                      </div>
-                    </td>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden relative min-h-[200px]">
+            {isLoading && (
+              <div className="absolute inset-0 bg-white/60 z-10 flex items-center justify-center gap-2">
+                <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                <span className="text-xs font-semibold text-slate-600">Đang tải dữ liệu...</span>
+              </div>
+            )}
+
+            {apiError && (
+              <div className="p-6 text-center text-xs text-rose-500 font-medium bg-rose-50 border-b border-rose-100">
+                {apiError}
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[980px] table-fixed">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    <th className="px-4 py-4 w-72">Thông tin cơ bản</th>
+                    <th className="px-4 py-4 w-72">Kênh liên hệ</th>
+                    <th className="px-4 py-4 w-72">Tổng số lần mua hàng</th>
+                    <th className="px-4 py-4 w-48 text-center">Nhãn trạng thái</th>
+                    <th className="px-4 py-4 w-44 text-center">Hành động</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-200 text-xs">
+                  {getRenderedRows().map(cust => (
+                    <tr key={cust.id} className="hover:bg-slate-50/60 transition-colors align-top">
+                      <td className="px-3 py-3 space-y-1">
+                        <span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span>
+                        <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{cust.birthday}</span></div>
+                        <div className="text-slate-600"><span className="text-slate-500">Địa chỉ:</span> <p className="inline break-words font-medium">{cust.address || 'Chưa cập nhật'}</p></div>
+                      </td>
+                      <td className="px-3 py-3 space-y-1">
+                        <div><span className="text-slate-500">SĐT:</span> <span className="font-bold text-slate-900">{cust.phone}</span></div>
+                        <div><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-800 break-all">{cust.email || 'Chưa điền'}</span></div>
+                        <div><span className="text-slate-500">Facebook:</span> {cust.facebook ? <a href={cust.facebook} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium break-all">{cust.facebook}</a> : <span className="text-slate-400 italic">Trống</span>}</div>
+                        <div className="pt-1"><span className="bg-slate-100 border text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px]">{ECOSYSTEM_OPTIONS.find(e => e.value === cust.ecosystem)?.label || 'Chưa chọn'}</span></div>
+                      </td>
+                      <td className="px-3 py-3 space-y-1">
+                        <span className="font-bold text-indigo-600">lần {cust.purchaseCount}</span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <select value={cust.label} onChange={e => handleLabelChange(cust.id, e.target.value)} className={`text-xs font-bold px-2 py-1.5 rounded-xl border cursor-pointer w-full text-center transition-all ${LABELS.find(l => l.value === cust.label)?.color}`}>
+                          {LABELS.map(l => <option key={l.value} value={l.value} className="bg-white text-slate-800 font-normal text-left">{l.label}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <div className="flex flex-col gap-1 items-center">
+                          <button onClick={() => setDetailCustomerId(cust.id)} className="w-full py-1 text-[11px] bg-indigo-600 text-white rounded-lg border border-indigo-600">Xem chi tiết</button>
+                          <button onClick={() => handleEditClick(cust)} className="w-full py-1 text-[11px] bg-slate-100 text-slate-700 rounded-lg border">Sửa thông tin</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {customers.length === 0 && !isLoading && (
+                    <tr>
+                      <td colSpan="5" className="text-center py-8 text-slate-400 italic">Không tìm thấy khách hàng nào khớp với bộ lọc.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ─── THANH ĐIỀU HƯỚNG PHÂN TRANG ─── */}
+            <div className="px-4 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-4">
+              <div className="text-xs font-medium text-slate-500">
+                Hiển thị từ <span className="font-semibold text-slate-700">{totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> đến{' '}
+                <span className="font-semibold text-slate-700">{Math.min(currentPage * pageSize, totalItems)}</span> trong tổng số{' '}
+                <span className="font-semibold text-slate-700">{totalItems}</span> khách hàng
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {/* Sửa lại mảng lặp trang, tránh render lỗi khi totalPages = 0 */}
+                {Array.from({ length: Math.max(totalPages, 1) }, (_, i) => i + 1).map(page => {
+                  if (totalPages > 5 && Math.abs(page - currentPage) > 2 && page !== 1 && page !== totalPages) {
+                    if (page === 2 || page === totalPages - 1) {
+                      return <span key={page} className="px-1 text-slate-400 text-xs">...</span>;
+                    }
+                    return null;
+                  }
+
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-[32px] h-8 text-xs font-bold rounded-lg transition-all ${page === currentPage
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages || totalPages === 0}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
