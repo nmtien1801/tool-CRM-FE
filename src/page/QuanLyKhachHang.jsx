@@ -206,7 +206,7 @@ export default function CRMSystem() {
       <main className="max-w-[1600px] mx-auto px-4 py-8 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
-          {/* ─── KHỐI CHỌN ẢNH (COMPONENT RIÊNG) ─── */}
+          {/* ─── KHỐI CHỌN ẢNH (GIỮ NGUYÊN) ─── */}
           <InvoiceImageUploader onExtracted={handleOcrExtracted} />
 
           {/* ─── KHỐI THÔNG TIN BIỂU MẪU ─── */}
@@ -287,38 +287,26 @@ export default function CRMSystem() {
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tổng số lần đã mua hàng</label>
                         <input type="number" min="0" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs disabled:bg-slate-100" value={formData.purchaseCount || 0} disabled />
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
-                        <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
-                      </div>
+
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
                         <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.singleDate} onChange={e => setFormData({ ...formData, singleDate: e.target.value })} />
                       </div>
                     </div>
-                    <div className="h-full flex flex-col">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ảnh hóa đơn đầu ra</label>
-                      <div className="relative w-full h-[174px] bg-white border border-slate-200 hover:border-indigo-400 rounded-xl overflow-hidden shadow-sm flex-1 group">
-                        <input type="file" accept="image/*" id="invoice-image-upload" className="hidden" onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) setFormData({ ...formData, invoiceLink: URL.createObjectURL(file) });
-                        }} />
-                        {formData.invoiceLink && !formData.invoiceLink.endsWith('.pdf') ? (
-                          <label htmlFor="invoice-image-upload" className="block w-full h-full cursor-pointer relative">
-                            <img src={formData.invoiceLink} alt="Hóa đơn" className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <span className="text-white text-xs font-semibold bg-indigo-600 px-3 py-1.5 rounded-xl">Thay đổi hình ảnh</span>
-                            </div>
-                          </label>
-                        ) : (
-                          <label htmlFor="invoice-image-upload" className="w-full h-full cursor-pointer flex flex-col items-center justify-center gap-1.5 p-3 text-center bg-slate-50/50">
-                            <span className="text-slate-700 text-xs font-semibold">Nhấp chọn ảnh hóa đơn</span>
-                          </label>
-                        )}
-                        {formData.invoiceLink && (
-                          <button type="button" onClick={() => setFormData({ ...formData, invoiceLink: '' })} className="absolute top-2 right-2 bg-rose-500 text-white w-5 h-5 flex items-center justify-center text-xs rounded-full">×</button>
-                        )}
+
+                    <div className="flex flex-col justify-end">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
+                        <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
                       </div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn hóa đơn (URL Link)</label>
+                      <input
+                        type="text"
+                        placeholder="Nhập đường dẫn URL hóa đơn tại đây..."
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={formData.invoiceLink}
+                        onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })}
+                      />
                     </div>
                   </div>
                 </div>

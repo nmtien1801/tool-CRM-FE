@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, ExternalLink } from 'lucide-react';
 
 export default function CustomerDetailModal({
   customer,
@@ -18,7 +18,7 @@ export default function CustomerDetailModal({
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/45 px-4 py-6 flex items-center justify-center">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[92vh] flex flex-col overflow-hidden">
-        
+
         {/* Header Modal */}
         <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
           <div>
@@ -54,7 +54,7 @@ export default function CustomerDetailModal({
                     <th className="px-4 py-3.5 text-center w-12 bg-slate-50/40">STT</th>
                     <th className="px-4 py-3.5 w-32 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">Ngày giao dịch</th>
                     <th className="px-4 py-3.5 w-60 bg-indigo-50/20 text-indigo-900">Sản phẩm</th>
-                    <th className="px-4 py-3.5 text-center w-24 bg-indigo-50/20 text-indigo-900">Hóa đơn</th>
+                    <th className="px-4 py-3.5 text-center w-36 bg-indigo-50/20 text-indigo-900">Hóa đơn (URL)</th>
                     <th className="px-4 py-3.5 w-64 border-l border-slate-200 bg-amber-50/20 text-amber-900">Mối quan tâm</th>
                     <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Quà tặng áp dụng</th>
                     <th className="px-4 py-3.5 w-48 bg-amber-50/20 text-amber-900">Kênh tiếp cận</th>
@@ -74,26 +74,27 @@ export default function CustomerDetailModal({
                         <td className="px-4 py-4 text-slate-800 font-bold leading-relaxed break-words bg-indigo-50/5">
                           {history.products || '---'}
                         </td>
+
+                        {/* CỘT HÓA ĐƠN ĐÃ THAY ĐỔI SANG HIỂN THỊ LINK URL */}
                         <td className="px-4 py-4 text-center whitespace-nowrap bg-indigo-50/5">
                           {history.invoiceLink ? (
-                            <div className="flex justify-center">
+                            <div className="flex justify-center items-center h-full pt-1">
                               <a
                                 href={history.invoiceLink}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="block relative group w-12 h-12 border border-slate-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all"
-                                title="Nhấp để xem ảnh gốc"
+                                className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg font-semibold transition-all text-[11px]"
+                                title={history.invoiceLink}
                               >
-                                <img src={history.invoiceLink} alt="Hóa đơn" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                                  <span className="text-[9px] text-white font-bold uppercase tracking-widest">Xem</span>
-                                </div>
+                                <ExternalLink className="w-3 h-3" />
+                                <span>Xem liên kết</span>
                               </a>
                             </div>
                           ) : (
                             <span className="text-slate-300 italic">Trống</span>
                           )}
                         </td>
+
                         <td className="px-4 py-4 text-slate-700 font-medium leading-relaxed break-words border-l border-slate-200 bg-amber-50/5">
                           {history.issue || customer.issue || <span className="text-slate-400 italic">Chưa ghi nhận</span>}
                         </td>
