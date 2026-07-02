@@ -8,6 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ThongBao from './page/ThongBao';
 import ChamSocKhachHang from './page/ChamSocKhachHang';
 import Dashboard from './page/Dashboard';
+import QuanLyKhuyenMai from './page/QuanLyKhuyenMai';
 
 // ─────────────────────────────────────────────
 // Component con — nằm TRONG <Router> nên dùng được useNavigate
@@ -40,6 +41,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/promotion"
+        element={
+          <ProtectedRoute>
+            <QuanLyKhuyenMai />
           </ProtectedRoute>
         }
       />

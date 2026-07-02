@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Loader2, Lock } from 'lucide-react';
 import Select from 'react-select';
 import CustomerDetailModal from '../components/CRM/CustomerDetailModal';
 import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
 import ExpandableInput from '../components/ExpandableInput';
-import Pagination from '../components/Pagination'; // <-- Thêm dòng import này
+import Pagination from '../components/Pagination';
 import ApiCustomer from '../api/ApiCustomer';
+import { useAuth } from '../context/AuthContext';
+import ApiPromotion from '../api/ApiPromotion'; // Đã import ApiPromotion
+
 import {
   ECOSYSTEM_OPTIONS,
   LABELS,
   CARE_METHODS,
   STAFF_OPTIONS,
-  PROMO_OPTIONS,
   EMPTY_CUSTOMER
-} from './CRM';
+} from './CRM'; // Đã loại bỏ PROMO_OPTIONS tĩnh ở đây
 
 const getPurchaseHistories = (customer) => {
   if (customer.purchaseHistories?.length) return customer.purchaseHistories;
@@ -52,6 +54,8 @@ const normalizeCustomerData = (customer) => {
 };
 
 export default function CRMSystem() {
+  const { user } = useAuth();
+
   const [editingId, setEditingId] = useState(null);
   const [editingHistoryId, setEditingHistoryId] = useState(null);
   const [detailCustomerId, setDetailCustomerId] = useState(null);
@@ -59,7 +63,9 @@ export default function CRMSystem() {
   // ─── STATE QUAN TRỌNG HỆ THỐNG ───
   const [customers, setCustomers] = useState([]);
   const [formData, setFormData] = useState(EMPTY_CUSTOMER);
+
   const [promoEvent, setPromoEvent] = useState('');
+  const [dbPromotions, setDbPromotions] = useState([]); // <-- 1. State lưu danh sách khuyến mãi động từ DB
 
   const [crmSearch, setCrmSearch] = useState('');
   const [crmFilterLabel, setCrmFilterLabel] = useState('');
@@ -113,8 +119,33 @@ export default function CRMSystem() {
   };
 
   useEffect(() => {
-    fetchCustomers();
-  }, [currentPage, pageSize, crmSearch, crmFilterLabel, crmFilterEco]);
+    if (user?.role === 'Admin') {
+      fetchCustomers();
+    }
+  }, [currentPage, pageSize, crmSearch, crmFilterLabel, crmFilterEco, user]);
+
+  // ─── 2. HOOK GỌI API LẤY KHUYẾN MÃI THEO NGÀY GIAO DỊCH ───
+  useEffect(() => {
+    const fetchActivePromotions = async () => {
+      // Nếu chưa chọn ngày mua hàng, không gọi API
+      if (!formData.singleDate) {
+        setDbPromotions([]);
+        return;
+      }
+      try {
+        const response = await ApiPromotion.getPromotionsByDate(formData.singleDate);
+
+        const result = response?.DT || response || [];
+        setDbPromotions(result);
+      } catch (error) {
+        console.error("Lỗi khi tải khuyến mãi theo ngày:", error);
+      }
+    };
+
+    if (user?.role === 'Admin') {
+      fetchActivePromotions();
+    }
+  }, [formData.singleDate, user]);
 
   const updateCareData = (careId, patch) => {
     setCareData(prev => prev.some(item => item.id === careId)
@@ -139,9 +170,9 @@ export default function CRMSystem() {
     setFormData(EMPTY_CUSTOMER);
     setEditingId(null);
     setEditingHistoryId(null);
+    setDbPromotions([]);
   };
 
-  // ─── LOGIC LƯU DỮ LIỆU QUA API CUSTOMER SERVICE ───
   const handleSaveData = async () => {
     if (!formData.fullName || !formData.phone || !formData.birthday) {
       alert('Vui lòng nhập tối thiểu Họ và tên, Ngày sinh, Số điện thoại!');
@@ -210,7 +241,6 @@ export default function CRMSystem() {
     }
   };
 
-  // ─── LOGIC XÓA LỊCH SỬ QUA API CUSTOMER SERVICE ───
   const handleDeleteHistory = async (customerId, historyId) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.')) {
       return;
@@ -247,6 +277,20 @@ export default function CRMSystem() {
   };
 
   const detailCustomer = detailCustomerId ? customers.map(normalizeCustomerData).find(c => c.id === detailCustomerId) : null;
+
+  if (!user || user.role !== 'Admin') {
+    return (
+      <div className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 shadow-xs mb-4">
+          <Lock className="w-12 h-12 stroke-[1.5]" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900">Truy cập bị từ chối</h3>
+        <p className="text-sm text-slate-500 mt-1 max-w-sm leading-relaxed">
+          Tài khoản của bạn không có quyền truy cập vào Module quản lý khách hàng (CRM). Vui lòng sử dụng tài khoản Admin.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 antialiased font-sans">
@@ -340,18 +384,22 @@ export default function CRMSystem() {
                       </div>
                     </div>
                     <div className="flex flex-col justify-end">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
-                        <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
+                          <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn hóa đơn (URL Link)</label>
+                          <input
+                            type="text"
+                            placeholder="Nhập đường dẫn URL hóa đơn tại đây..."
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={formData.invoiceLink}
+                            onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })}
+                          />
+                        </div>
                       </div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn hóa đơn (URL Link)</label>
-                      <input
-                        type="text"
-                        placeholder="Nhập đường dẫn URL hóa đơn tại đây..."
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.invoiceLink}
-                        onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })}
-                      />
                     </div>
                   </div>
                 </div>
@@ -371,10 +419,23 @@ export default function CRMSystem() {
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khuyến mãi áp dụng</label>
                       <div className="flex gap-1.5">
+
+                        {/* ─── 3. ĐỔI SANG MAP MẢNG ĐỘNG TỪ DB ─── */}
                         <select className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs" value={promoEvent} onChange={e => setPromoEvent(e.target.value)}>
-                          <option value="">-- Chọn sự kiện khuyến mãi --</option>
-                          {PROMO_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          <option value="">
+                            {!formData.singleDate
+                              ? '-- Vui lòng chọn Ngày mua hàng trước --'
+                              : dbPromotions.length === 0
+                                ? '-- Không có sự kiện nào trong ngày này --'
+                                : '-- Chọn sự kiện khuyến mãi từ hệ thống --'}
+                          </option>
+                          {dbPromotions.map(opt => (
+                            <option key={opt.id || opt.code} value={opt.name}>
+                              {opt.name}
+                            </option>
+                          ))}
                         </select>
+
                         <button type="button" onClick={() => { if (promoEvent) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent }] }); setPromoEvent(''); }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl border border-indigo-200">Thêm</button>
                       </div>
                       <div className="mt-1.5 space-y-1">
@@ -523,7 +584,6 @@ export default function CRMSystem() {
               </table>
             </div>
 
-            {/* ─── GỌI COMPONENT PHÂN TRANG RIÊNG BIỆT TẠI ĐÂY ─── */}
             <Pagination
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
@@ -534,7 +594,6 @@ export default function CRMSystem() {
           </div>
         </div>
 
-        {/* ─── MODAL CHI TIẾT ─── */}
         <CustomerDetailModal
           customer={detailCustomer}
           onClose={() => setDetailCustomerId(null)}
