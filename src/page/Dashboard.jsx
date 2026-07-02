@@ -1,70 +1,142 @@
-import React, { useState } from 'react';
-import { UserPlus, Shield, Trash2, Key, Search, X, AlertTriangle } from 'lucide-react';
-import { INITIAL_USERS } from './Auth';
+import React, { useState, useEffect } from 'react';
+import { UserPlus, Shield, Trash2, Key, Search, X, AlertTriangle, Loader2, Lock } from 'lucide-react';
+import ApiAuth from '../api/ApiAuth';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardPage() {
-  const [users, setUsers] = useState(INITIAL_USERS);
+  const { user } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState(''); // State quản lý bộ lọc vai trò
+  const [filterRole, setFilterRole] = useState('');
 
   // States quản lý Form Thêm mới
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ fullName: '', role: 'CSKH Staff', email: '' });
+  const [newUser, setNewUser] = useState({ fullName: '', role: 'Staff', email: '' });
 
   // States quản lý Popup xác nhận Xóa / Reset mật khẩu
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', userId: null, userName: '' });
 
-  // Xử lý Thêm mới thành viên
-  const handleAddUser = (e) => {
+  // --- 1. CALL API: LẤY DANH SÁCH USER ---
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await ApiAuth.getListUser();
+      const result = response?.DT || response;
+      const userList = result?.user || [];
+      setUsers(userList);
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách user:", error);
+      alert("Không thể tải danh sách thành viên!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Chỉ kích hoạt call API nếu user hiện tại đăng nhập có quyền Admin
+    if (user?.role === 'Admin') {
+      fetchUsers();
+    }
+  }, [user]);
+
+  // --- 2. CALL API: THÊM MỚI THÀNH VIÊN ---
+  const handleAddUser = async (e) => {
     e.preventDefault();
     if (!newUser.fullName || !newUser.email) return;
 
-    const userAdded = {
-      id: Date.now(),
-      ...newUser
-    };
+    try {
+      const generatedUserName = newUser.email.split('@')[0];
 
-    setUsers([...users, userAdded]);
-    setNewUser({ fullName: '', role: 'CSKH Staff', email: '' });
-    setIsAddOpen(false);
-    alert('Thêm thành viên mới thành công!');
+      const payload = {
+        userName: generatedUserName,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        role: newUser.role,
+        password: "123456"
+      };
+
+      const response = await ApiAuth.createUser(payload);
+
+      if (response && response.EC === 0) {
+        alert('Thêm thành viên mới thành công! Mật khẩu mặc định là: 123456');
+        setNewUser({ fullName: '', role: 'Staff', email: '' });
+        setIsAddOpen(false);
+        fetchUsers();
+      } else {
+        alert(`Lỗi: ${response?.EM || "Không thể tạo tài khoản"}`);
+      }
+    } catch (error) {
+      console.error("Lỗi khi thêm user:", error);
+      alert("Đã xảy ra lỗi hệ thống khi tạo thành viên mới.");
+    }
   };
 
-  // Mở popup xác nhận hành động
   const openConfirmModal = (type, userId, userName) => {
     setConfirmModal({ isOpen: true, type, userId, userName });
   };
 
-  // Thực thi hành động sau khi bấm xác nhận ở Popup
-  const executeAction = () => {
+  // --- 3 & 4. CALL API: THỰC THI XÓA / ĐỔI MẬT KHẨU ---
+  const executeAction = async () => {
     const { type, userId, userName } = confirmModal;
 
-    if (type === 'delete') {
-      setUsers(users.filter(u => u.id !== userId));
-      alert(`Đã xóa tài khoản của: ${userName}`);
-    } else if (type === 'reset') {
-      alert(`Đã gửi yêu cầu cấp lại mật khẩu cho ${userName}. Mật khẩu mới mặc định là: 123456a@`);
-    }
+    try {
+      if (type === 'delete') {
+        const response = await ApiAuth.deleteUser(userId);
+        if (response && response.EC === 0) {
+          alert(`Đã xóa thành công tài khoản của: ${userName}`);
+          fetchUsers();
+        } else {
+          alert(`Lỗi: ${response?.EM || "Không thể xóa tài khoản"}`);
+        }
+      } else if (type === 'reset') {
+        const response = await ApiAuth.resetPassword({
+          id: userId,
+          password: "123456"
+        });
 
-    setConfirmModal({ isOpen: false, type: null, userId: null, userName: '' });
+        if (response && response.EC === 0) {
+          alert(`Đã reset mật khẩu cho ${userName} thành công. Mật khẩu mới là: 123456`);
+        } else {
+          alert(`Lỗi: ${response?.EM || "Không thể đổi mật khẩu"}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Lỗi hệ thống khi thực hiện hành động ${type}:`, error);
+      alert("Hệ thống gặp sự cố, vui lòng thử lại sau.");
+    } finally {
+      setConfirmModal({ isOpen: false, type: '', userId: null, userName: '' });
+    }
   };
 
-  // --- LOGIC LỌC TÌM KIẾM NÂNG CAO ---
   const filteredUsers = users.filter(user => {
     const search = searchTerm.trim().toLowerCase();
     const name = (user.fullName || '').toLowerCase();
     const email = (user.email || '').toLowerCase();
 
-    // 1. Kiểm tra điều kiện tìm kiếm theo tên/email
     const matchesSearch = name.includes(search) || email.includes(search);
-
-    // 2. Kiểm tra điều kiện lọc theo vai trò
     const matchesRole = filterRole === '' || user.role === filterRole;
 
-    // Kết hợp cả 2 điều kiện lọc
     return matchesSearch && matchesRole;
   });
 
+  // ==================== LOGIC PHÂN QUYỀN TRUY CẬP ====================
+  // Nếu thông tin user chưa load xong hoặc role không phải Admin, chặn hiển thị
+  if (!user || user.role !== 'Admin') {
+    return (
+      <div className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 shadow-xs mb-4">
+          <Lock className="w-12 h-12 stroke-[1.5]" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900">Truy cập bị từ chối</h3>
+        <p className="text-sm text-slate-500 mt-1 max-w-sm leading-relaxed">
+          Tài khoản của bạn không có quyền quản trị hệ thống. Vui lòng liên hệ với cấp trên nếu đây là một sự nhầm lẫn.
+        </p>
+      </div>
+    );
+  }
+
+  // Nếu là Admin, render toàn bộ bảng danh sách quản trị bên dưới
   return (
     <div className="w-full min-h-screen bg-slate-50 p-6 space-y-6 text-slate-800">
 
@@ -90,7 +162,6 @@ export default function DashboardPage() {
 
       {/* Khu vực Bộ lọc: Tìm kiếm văn bản + Chọn vai trò */}
       <div className="flex flex-col sm:flex-row gap-3 max-w-2xl bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
-        {/* Ô Tìm kiếm nhanh */}
         <div className="relative flex-1">
           <input
             type="text"
@@ -102,7 +173,6 @@ export default function DashboardPage() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
         </div>
 
-        {/* Ô Chọn bộ lọc Vai trò */}
         <div className="w-full sm:w-48">
           <select
             value={filterRole}
@@ -110,9 +180,8 @@ export default function DashboardPage() {
             className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium"
           >
             <option value="">Tất cả vai trò</option>
-            <option value="Administrator">Administrator</option>
-            <option value="CSKH Staff">CSKH Staff</option>
-            <option value="Operator">Operator</option>
+            <option value="Admin">Admin</option>
+            <option value="Staff">Staff</option>
           </select>
         </div>
       </div>
@@ -129,29 +198,34 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-150 text-xs">
-              {filteredUsers.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={3} className="py-10 text-center text-slate-400 font-medium bg-slate-50/20">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                      Đang tải danh sách thành viên...
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-50/60 transition-colors">
-
-                    {/* Tên & Email */}
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900 text-sm">{user.fullName}</div>
                       <div className="text-slate-400 text-[11px] mt-0.5">{user.email}</div>
                     </td>
 
-                    {/* Vai trò */}
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold border ${user.role === 'Administrator'
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : user.role === 'CSKH Staff'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold border ${user.role === 'Admin'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : user.role === 'Staff'
+                          ? 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
                         }`}>
                         {user.role}
                       </span>
                     </td>
 
-                    {/* Khối nút hành động yêu cầu */}
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="inline-flex items-center gap-1.5">
                         <button
@@ -172,7 +246,6 @@ export default function DashboardPage() {
                         </button>
                       </div>
                     </td>
-
                   </tr>
                 ))
               ) : (
@@ -207,9 +280,8 @@ export default function DashboardPage() {
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">Vai trò</label>
                 <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700">
-                  <option value="CSKH Staff">CSKH Staff</option>
-                  <option value="Operator">Operator</option>
-                  <option value="Administrator">Administrator</option>
+                  <option value="Staff">Staff</option>
+                  <option value="Admin">Admin</option>
                 </select>
               </div>
             </div>

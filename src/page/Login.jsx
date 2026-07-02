@@ -20,7 +20,7 @@ function Login() {
             // Gửi userName và password lên API
             const response = await ApiAuth.LoginApi({ userName, password });
 
-            // Lưu user info vào context (không lưu localStorage)
+            // Lưu user info vào context
             const userData = response.DT || {};
             if (response.EC === 0 && userData) {
                 login(userData);

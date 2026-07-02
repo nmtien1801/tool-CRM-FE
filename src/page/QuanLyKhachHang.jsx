@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Loader2 } from 'lucide-react';
 import Select from 'react-select';
 import CustomerDetailModal from '../components/CRM/CustomerDetailModal';
 import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
 import ExpandableInput from '../components/ExpandableInput';
+import Pagination from '../components/Pagination'; // <-- Thêm dòng import này
 import ApiCustomer from '../api/ApiCustomer';
 import {
   ECOSYSTEM_OPTIONS,
@@ -80,7 +81,7 @@ export default function CRMSystem() {
   const birthdayList = customers.filter(c => c.birthday && c.birthday.slice(5, 10) === todayStr);
   const birthdayCount = birthdayList.length;
 
-  // ─── HOOK FETCH DATA TỪ BACKEND (ĐÃ ĐƯỢC SỬA) ───
+  // ─── HOOK FETCH DATA TỪ BACKEND ───
   const fetchCustomers = async () => {
     setIsLoading(true);
     setApiError(null);
@@ -93,7 +94,6 @@ export default function CRMSystem() {
         ecosystem: crmFilterEco
       });
 
-      // Sửa lại logic check chuẩn cấu trúc { EC, EM, DT } của Backend mới
       if (response && response.EC === 0 && response.DT) {
         const { rows, pagination } = response.DT;
 
@@ -340,22 +340,18 @@ export default function CRMSystem() {
                       </div>
                     </div>
                     <div className="flex flex-col justify-end">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
-                          <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn hóa đơn (URL Link)</label>
-                          <input
-                            type="text"
-                            placeholder="Nhập đường dẫn URL hóa đơn tại đây..."
-                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            value={formData.invoiceLink}
-                            onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })}
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
+                        <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.products} onChange={e => setFormData({ ...formData, products: e.target.value })} />
                       </div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn hóa đơn (URL Link)</label>
+                      <input
+                        type="text"
+                        placeholder="Nhập đường dẫn URL hóa đơn tại đây..."
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={formData.invoiceLink}
+                        onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })}
+                      />
                     </div>
                   </div>
                 </div>
@@ -518,7 +514,7 @@ export default function CRMSystem() {
                       </td>
                     </tr>
                   ))}
-                  {customers.length === 0 && !isLoading && (
+                  {getRenderedRows().length === 0 && !isLoading && (
                     <tr>
                       <td colSpan="5" className="text-center py-8 text-slate-400 italic">Không tìm thấy khách hàng nào khớp với bộ lọc.</td>
                     </tr>
@@ -527,58 +523,14 @@ export default function CRMSystem() {
               </table>
             </div>
 
-            {/* ─── THANH ĐIỀU HƯỚNG PHÂN TRANG ─── */}
-            <div className="px-4 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-4">
-              <div className="text-xs font-medium text-slate-500">
-                Hiển thị từ <span className="font-semibold text-slate-700">{totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> đến{' '}
-                <span className="font-semibold text-slate-700">{Math.min(currentPage * pageSize, totalItems)}</span> trong tổng số{' '}
-                <span className="font-semibold text-slate-700">{totalItems}</span> khách hàng
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-
-                {/* Sửa lại mảng lặp trang, tránh render lỗi khi totalPages = 0 */}
-                {Array.from({ length: Math.max(totalPages, 1) }, (_, i) => i + 1).map(page => {
-                  if (totalPages > 5 && Math.abs(page - currentPage) > 2 && page !== 1 && page !== totalPages) {
-                    if (page === 2 || page === totalPages - 1) {
-                      return <span key={page} className="px-1 text-slate-400 text-xs">...</span>;
-                    }
-                    return null;
-                  }
-
-                  return (
-                    <button
-                      key={page}
-                      type="button"
-                      onClick={() => setCurrentPage(page)}
-                      className={`min-w-[32px] h-8 text-xs font-bold rounded-lg transition-all ${page === currentPage
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                        }`}
-                    >
-                      {page}
-                    </button>
-                  );
-                })}
-
-                <button
-                  type="button"
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            {/* ─── GỌI COMPONENT PHÂN TRANG RIÊNG BIỆT TẠI ĐÂY ─── */}
+            <Pagination
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              totalPages={totalPages}
+            />
           </div>
         </div>
 
