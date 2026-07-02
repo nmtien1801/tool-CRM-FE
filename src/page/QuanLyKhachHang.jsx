@@ -8,12 +8,12 @@ import Pagination from '../components/Pagination';
 import ApiCustomer from '../api/ApiCustomer';
 import { useAuth } from '../context/AuthContext';
 import ApiPromotion from '../api/ApiPromotion'; // Đã import ApiPromotion
+import ApiAuth from '../api/ApiAuth';
 
 import {
   ECOSYSTEM_OPTIONS,
   LABELS,
   CARE_METHODS,
-  STAFF_OPTIONS,
   EMPTY_CUSTOMER
 } from './CRM'; // Đã loại bỏ PROMO_OPTIONS tĩnh ở đây
 
@@ -56,6 +56,7 @@ const normalizeCustomerData = (customer) => {
 export default function CRMSystem() {
   const { user } = useAuth();
 
+  const [staffList, setStaffList] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editingHistoryId, setEditingHistoryId] = useState(null);
   const [detailCustomerId, setDetailCustomerId] = useState(null);
@@ -88,6 +89,21 @@ export default function CRMSystem() {
   const birthdayCount = birthdayList.length;
 
   // ─── HOOK FETCH DATA TỪ BACKEND ───
+  const fetchStaff = async () => {
+    try {
+      const response = await ApiAuth.getListUser();
+      const result = response?.DT || response;
+
+      const userList = result?.user || [];
+      const filteredStaff = userList.filter(user => user.role === 'Staff');
+
+      setStaffList(filteredStaff);
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách user:", error);
+      alert("Không thể tải danh sách thành viên!");
+    }
+  };
+
   const fetchCustomers = async () => {
     setIsLoading(true);
     setApiError(null);
@@ -121,6 +137,7 @@ export default function CRMSystem() {
   useEffect(() => {
     if (user?.role === 'Admin') {
       fetchCustomers();
+      fetchStaff();
     }
   }, [currentPage, pageSize, crmSearch, crmFilterLabel, crmFilterEco, user]);
 
@@ -469,14 +486,14 @@ export default function CRMSystem() {
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên tư vấn</label>
                       <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.consultant} onChange={e => setFormData({ ...formData, consultant: e.target.value })}>
                         <option value="">-- Chọn nhân sự tư vấn --</option>
-                        {STAFF_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                        {staffList.map(s => <option key={s.id} value={s.fullName}>{s.fullName}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên chăm sóc</label>
                       <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.careStaff} onChange={e => setFormData({ ...formData, careStaff: e.target.value })}>
                         <option value="">-- Chọn nhân sự chăm sóc --</option>
-                        {STAFF_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                        {staffList.map(s => <option key={s.id} value={s.fullName}>{s.fullName}</option>)}
                       </select>
                     </div>
                   </div>
@@ -597,7 +614,7 @@ export default function CRMSystem() {
         <CustomerDetailModal
           customer={detailCustomer}
           onClose={() => setDetailCustomerId(null)}
-          staffOptions={STAFF_OPTIONS}
+          staffOptions={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
           getPurchaseHistoriesFn={getPurchaseHistories}
           onDeleteTransaction={(historyId) => handleDeleteHistory(detailCustomer.id, historyId)}
           onEditTransaction={(history) => {
