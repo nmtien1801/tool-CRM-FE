@@ -7,7 +7,6 @@ import ExpandableInput from '../components/ExpandableInput';
 import Pagination from '../components/Pagination';
 import ApiCustomer from '../api/ApiCustomer';
 import { useAuth } from '../context/AuthContext';
-import ApiPromotion from '../api/ApiPromotion'; // Đã import ApiPromotion
 import ApiAuth from '../api/ApiAuth';
 
 import {
@@ -66,7 +65,6 @@ export default function CRMSystem() {
   const [formData, setFormData] = useState(EMPTY_CUSTOMER);
 
   const [promoEvent, setPromoEvent] = useState('');
-  const [dbPromotions, setDbPromotions] = useState([]); // <-- 1. State lưu danh sách khuyến mãi động từ DB
 
   const [crmSearch, setCrmSearch] = useState('');
   const [crmFilterLabel, setCrmFilterLabel] = useState('');
@@ -84,8 +82,14 @@ export default function CRMSystem() {
 
   const [careData, setCareData] = useState([]);
 
-  const todayStr = new Date().toISOString().slice(5, 10);
-  const birthdayList = customers.filter(c => c.birthday && c.birthday.slice(5, 10) === todayStr);
+  const today = new Date();
+  const todayDD = String(today.getDate()).padStart(2, '0');
+  const todayMM = String(today.getMonth() + 1).padStart(2, '0');
+  const birthdayList = customers.filter(c => {
+    if (!c.birthday) return false;
+    const parts = String(c.birthday).split('/'); // dd/MM/yyyy
+    return parts.length === 3 && parts[0] === todayDD && parts[1] === todayMM;
+  });
   const birthdayCount = birthdayList.length;
 
   // ─── HOOK FETCH DATA TỪ BACKEND ───
@@ -141,29 +145,6 @@ export default function CRMSystem() {
     }
   }, [currentPage, pageSize, crmSearch, crmFilterLabel, crmFilterEco, user]);
 
-  // ─── 2. HOOK GỌI API LẤY KHUYẾN MÃI THEO NGÀY GIAO DỊCH ───
-  useEffect(() => {
-    const fetchActivePromotions = async () => {
-      // Nếu chưa chọn ngày mua hàng, không gọi API
-      if (!formData.singleDate) {
-        setDbPromotions([]);
-        return;
-      }
-      try {
-        const response = await ApiPromotion.getPromotionsByDate(formData.singleDate);
-
-        const result = response?.DT || response || [];
-        setDbPromotions(result);
-      } catch (error) {
-        console.error("Lỗi khi tải khuyến mãi theo ngày:", error);
-      }
-    };
-
-    if (user?.role === 'Admin') {
-      fetchActivePromotions();
-    }
-  }, [formData.singleDate, user]);
-
   const updateCareData = (careId, patch) => {
     setCareData(prev => prev.some(item => item.id === careId)
       ? prev.map(item => item.id === careId ? { ...item, ...patch } : item)
@@ -171,23 +152,102 @@ export default function CRMSystem() {
     );
   };
 
+  // ─── Chuẩn hóa mọi dạng ngày (dd/MM/yyyy, d/M/yyyy, hoặc ISO yyyy-MM-dd cũ) về đúng dd/MM/yyyy để hiển thị nhất quán ───
+  const toDMY = (value) => {
+    if (!value) return '';
+    const str = String(value).trim();
+    // Nếu là chuẩn ISO yyyy-MM-dd (dữ liệu cũ) -> chuyển sang dd/MM/yyyy
+    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const [, y, m, d] = isoMatch;
+      return `${d}/${m}/${y}`;
+    }
+    // Nếu đã là dd/MM/yyyy (hoặc d/M/yyyy) -> chỉ chuẩn hóa số 0 phía trước
+    const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmyMatch) {
+      const [, d, m, y] = dmyMatch;
+      return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+    }
+    return '';
+  };
+
+  // ─── Khớp text hệ sinh thái trích xuất được (VD: "Hệ sinh thái A") với value trong ECOSYSTEM_OPTIONS ───
+  const matchEcosystem = (text) => {
+    if (!text) return '';
+    const t = String(text).trim().toLowerCase();
+    const found = ECOSYSTEM_OPTIONS.find(o =>
+      o.label.toLowerCase() === t || t.includes(o.label.toLowerCase()) || o.value.toLowerCase() === t
+    );
+    return found ? found.value : '';
+  };
+
+  // ─── Tách chuỗi "Zalo OA, Email Marketing, Messenger" thành mảng value khớp CARE_METHODS ───
+  const matchCareMethods = (text) => {
+    if (!text) return [];
+    const list = Array.isArray(text) ? text : String(text).split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    return list
+      .map(item => CARE_METHODS.find(m => m.label.toLowerCase() === item.toLowerCase() || m.value.toLowerCase() === item.toLowerCase())?.value)
+      .filter(Boolean);
+  };
+
+  // ─── Chuẩn hóa khuyến mãi trích xuất được thành mảng [{ event }] ───
+  const matchPromotions = (text) => {
+    if (!text) return [];
+    if (Array.isArray(text)) {
+      return text.map(t => (typeof t === 'string' ? { event: t.trim() } : { event: t.event || t.name || '' })).filter(p => p.event);
+    }
+    return String(text).split(/[,;]/).map(s => s.trim()).filter(Boolean).map(event => ({ event }));
+  };
+
+  // ─── Tách nhiều ngày mua hàng "10/01/2026, 15/04/2026, 20/06/2026" thành mảng dd/MM/yyyy ───
+  const matchPurchaseDates = (text) => {
+    if (!text) return [];
+    const list = Array.isArray(text) ? text : String(text).split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    return list.map(toDMY).filter(Boolean);
+  };
+
+  // ─── Khớp tên nhân viên trích xuất được với danh sách staffList thực tế (không lệch hoa/thường, khoảng trắng) ───
+  const matchStaffName = (name) => {
+    if (!name) return '';
+    const found = staffList.find(s => s.fullName.toLowerCase() === String(name).trim().toLowerCase());
+    return found ? found.fullName : String(name).trim();
+  };
+
   const handleOcrExtracted = (fields) => {
-    setFormData((prev) => ({
-      ...prev,
-      fullName: fields.fullName || prev.fullName,
-      phone: fields.phone || prev.phone,
-      email: fields.email || prev.email,
-      singleDate: fields.singleDate || prev.singleDate,
-      products: fields.products || prev.products,
-      issue: fields.issue || prev.issue,
-    }));
+    if (!fields) return; // Trường hợp người dùng bấm "Xóa" ảnh -> không có dữ liệu để map
+    setFormData((prev) => {
+      const purchaseDates = matchPurchaseDates(fields.purchaseDates);
+      const newCareMethods = matchCareMethods(fields.careMethods);
+      const newPromotions = matchPromotions(fields.promotions);
+
+      return {
+        ...prev,
+        fullName: fields.fullName || prev.fullName,
+        birthday: toDMY(fields.birthday) || prev.birthday,
+        address: fields.address || prev.address,
+        phone: fields.phone || prev.phone,
+        email: fields.email || prev.email,
+        facebook: fields.facebook || prev.facebook,
+        ecosystem: matchEcosystem(fields.ecosystem) || prev.ecosystem,
+        singleDate: (purchaseDates[purchaseDates.length - 1]) || toDMY(fields.singleDate) || prev.singleDate,
+        purchaseDates: purchaseDates.length ? purchaseDates : prev.purchaseDates,
+        purchaseCount: purchaseDates.length || fields.purchaseCount || prev.purchaseCount,
+        products: fields.products || prev.products,
+        invoiceLink: fields.invoiceLink || prev.invoiceLink,
+        issue: fields.issue || prev.issue,
+        promotions: newPromotions.length ? [...(prev.promotions || []), ...newPromotions] : prev.promotions,
+        careMethods: newCareMethods.length ? Array.from(new Set([...(prev.careMethods || []), ...newCareMethods])) : prev.careMethods,
+        consultant: matchStaffName(fields.consultant) || prev.consultant,
+        careStaff: matchStaffName(fields.careStaff) || prev.careStaff,
+        label: fields.label || prev.label,
+      };
+    });
   };
 
   const handleClearForm = () => {
     setFormData(EMPTY_CUSTOMER);
     setEditingId(null);
     setEditingHistoryId(null);
-    setDbPromotions([]);
   };
 
   const handleSaveData = async () => {
@@ -351,7 +411,7 @@ export default function CRMSystem() {
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh *</label>
-                      <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.birthday} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
+                      <input type="text" placeholder="dd/MM/yyyy" pattern="\d{2}/\d{2}/\d{4}" title="Định dạng: dd/MM/yyyy" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.birthday} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Địa chỉ chính xác</label>
@@ -397,7 +457,7 @@ export default function CRMSystem() {
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
-                        <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.singleDate} onChange={e => setFormData({ ...formData, singleDate: e.target.value })} />
+                        <input type="text" placeholder="dd/MM/yyyy" pattern="\d{2}/\d{2}/\d{4}" title="Định dạng: dd/MM/yyyy" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.singleDate} onChange={e => setFormData({ ...formData, singleDate: e.target.value })} />
                       </div>
                     </div>
                     <div className="flex flex-col justify-end">
@@ -437,23 +497,23 @@ export default function CRMSystem() {
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khuyến mãi áp dụng</label>
                       <div className="flex gap-1.5">
 
-                        {/* ─── 3. ĐỔI SANG MAP MẢNG ĐỘNG TỪ DB ─── */}
-                        <select className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs" value={promoEvent} onChange={e => setPromoEvent(e.target.value)}>
-                          <option value="">
-                            {!formData.singleDate
-                              ? '-- Vui lòng chọn Ngày mua hàng trước --'
-                              : dbPromotions.length === 0
-                                ? '-- Không có sự kiện nào trong ngày này --'
-                                : '-- Chọn sự kiện khuyến mãi từ hệ thống --'}
-                          </option>
-                          {dbPromotions.map(opt => (
-                            <option key={opt.id || opt.code} value={opt.name}>
-                              {opt.name}
-                            </option>
-                          ))}
-                        </select>
+                        {/* ─── Nhập tay khuyến mãi đã tặng cho khách hàng ─── */}
+                        <input
+                          type="text"
+                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs"
+                          placeholder="Nhập tên khuyến mãi đã tặng..."
+                          value={promoEvent}
+                          onChange={e => setPromoEvent(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (promoEvent.trim()) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent.trim() }] });
+                              setPromoEvent('');
+                            }
+                          }}
+                        />
 
-                        <button type="button" onClick={() => { if (promoEvent) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent }] }); setPromoEvent(''); }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl border border-indigo-200">Thêm</button>
+                        <button type="button" onClick={() => { if (promoEvent.trim()) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent.trim() }] }); setPromoEvent(''); }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl border border-indigo-200">Thêm</button>
                       </div>
                       <div className="mt-1.5 space-y-1">
                         {(formData.promotions || []).map((p, i) => (

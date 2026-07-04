@@ -81,10 +81,6 @@ const createWindow = () => {
       label: "Khách hàng",
       submenu: [
         {
-          label: "Quản lý khuyễn mãi",
-          click: () => mainWindow.webContents.send("navigate", "/promotion"),
-        },
-        {
           label: "Quản lý khách hàng (CRM)",
           click: () => mainWindow.webContents.send("navigate", "/crm"),
         },
