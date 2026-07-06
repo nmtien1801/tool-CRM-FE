@@ -102,7 +102,6 @@ export const EMPTY_CUSTOMER = {
   purchaseCount: 0,
   purchaseDates: [],
   products: "",
-  purchaseHistories: [],
   careMethods: [],
   promotions: [],
   consultant: "",
@@ -112,6 +111,7 @@ export const EMPTY_CUSTOMER = {
   singleDate: "",
 };
 
+// Danh sách khách hàng gốc (Đã lược bỏ purchaseHistories lồng bên trong)
 export const INITIAL_CUSTOMERS = [
   {
     id: 1,
@@ -123,30 +123,34 @@ export const INITIAL_CUSTOMERS = [
     facebook: "https://fb.com/tiennguyen",
     ecosystem: "course",
     purchaseCount: 2,
-    purchaseHistories: [
-      {
-        id: "1-0",
-        date: "2026-03-15",
-        products: "Khóa học Pro Video Editing",
-        invoiceLink: "https://example.com/invoice_01.pdf",
-        careMethods: ["Zalo OA", "Email Marketing", "Messenger"],
-        promotions: [{ event: "Ưu đãi mở bán sớm -30%" }],
-        consultant: "NguyenVanA",
-        careStaff: "TranThiB",
-        issue: "Cần tìm tool tối ưu quy trình render video tự động",
-      },
-      {
-        id: "1-1",
-        date: "2026-05-20",
-        products: "Gói nâng cấp Pro Video Editing",
-        invoiceLink: "https://example.com/invoice_02.pdf",
-        careMethods: ["Zalo OA", "Email Marketing"],
-        promotions: [{ event: "Ưu đãi mở bán sớm -40%" }],
-        consultant: "TranThiB",
-        careStaff: "LeVanC",
-        issue: "Cần tìm tool tối ưu quy trình render video tự động",
-      },
-    ],
     label: "Đã mua hàng",
+  },
+];
+
+// Mảng lịch sử mua hàng được tách riêng biệt hoàn toàn, liên kết bằng định danh customerId
+export const INITIAL_PURCHASE_HISTORIES = [
+  {
+    id: "1-0",
+    customerId: 1,
+    date: "2026-03-15",
+    products: "Khóa học Pro Video Editing",
+    invoiceLink: "https://example.com/invoice_01.pdf",
+    careMethods: ["Zalo OA", "Email Marketing", "Messenger"],
+    promotions: [{ event: "Ưu đãi mở bán sớm -30%" }],
+    consultant: "NguyenVanA",
+    careStaff: "TranThiB",
+    issue: "Cần tìm tool tối ưu quy trình render video tự động",
+  },
+  {
+    id: "1-1",
+    customerId: 1,
+    date: "2026-05-20",
+    products: "Gói nâng cấp Pro Video Editing",
+    invoiceLink: "https://example.com/invoice_02.pdf",
+    careMethods: ["Zalo OA", "Email Marketing"],
+    promotions: [{ event: "Ưu đãi mở bán sớm -40%" }],
+    consultant: "TranThiB",
+    careStaff: "LeVanC",
+    issue: "Cần tìm tool tối ưu quy trình render video tự động",
   },
 ];

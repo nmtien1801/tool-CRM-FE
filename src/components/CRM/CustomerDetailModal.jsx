@@ -11,7 +11,7 @@ export default function CustomerDetailModal({
   getPurchaseHistoriesFn
 }) {
   if (!customer) return null;
-
+  
   // Lấy lịch sử giao dịch thông qua hàm helper được truyền từ cha
   const histories = getPurchaseHistoriesFn ? getPurchaseHistoriesFn(customer) : (customer.purchaseHistories || []);
   const validHistories = histories.filter(h => h.date || h.products || h.invoiceLink);
