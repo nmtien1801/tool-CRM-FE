@@ -206,6 +206,11 @@ export default function InvoiceImageUploader({ onExtracted }) {
         if (standalonePhone) extractedPhone = standalonePhone[1];
       }
 
+      // Trả focus về document ngay khi xử lý xong, tránh kẹt focus ở input file đã ẩn
+      // (nếu không, ở một số môi trường/browser, activeElement bị "mắc kẹt" tại input file
+      // ẩn này và khiến toàn bộ input khác trên trang không nhận được sự kiện bàn phím nữa)
+      e.target.blur();
+
       onExtracted({
         fullName: extractedName,
         birthday: extractedDob,
@@ -225,11 +230,8 @@ export default function InvoiceImageUploader({ onExtracted }) {
         invoiceLink: extractedInvoiceLink,
         label: 'Đã mua hàng'
       });
-
-      alert('AI đã hoàn tất phân tích hình ảnh và tự động điền các trường khớp từ khóa!');
     } catch (error) {
       console.error('Lỗi công cụ OCR:', error);
-      alert('Có lỗi xảy ra trong quá trình bóc tách chữ trên hình ảnh.');
     } finally {
       setIsScanning(false);
     }

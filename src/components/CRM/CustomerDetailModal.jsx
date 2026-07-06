@@ -1,9 +1,10 @@
 import React from 'react';
-import { Edit, Trash2, ExternalLink } from 'lucide-react';
+import { Edit, Trash2, ExternalLink, Plus } from 'lucide-react';
 
 export default function CustomerDetailModal({
   customer,
   onClose,
+  onAddTransaction, // Thêm prop để xử lý sự kiện thêm giao dịch
   onEditTransaction,
   onDeleteTransaction,
   staffOptions = [],
@@ -27,6 +28,16 @@ export default function CustomerDetailModal({
             </h3>
           </div>
           <div className="flex gap-2">
+            {/* Nút Thêm giao dịch mới */}
+            <button
+              type="button"
+              onClick={() => onAddTransaction && onAddTransaction(customer)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Thêm giao dịch
+            </button>
+
             <button
               type="button"
               onClick={onClose}
