@@ -4,6 +4,8 @@ import CustomerDetailModal from '../components/CRM/CustomerDetailModal';
 import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
 import ExpandableInput from '../components/ExpandableInput';
 import Pagination from '../components/Pagination';
+import ConfirmModal from '../components/CRM/ConfirmModal';
+import { useAuth } from '../context/AuthContext';
 
 // Import lại các API Services độc lập theo yêu cầu của bạn
 import ApiAuth from '../api/ApiAuth';
@@ -26,19 +28,19 @@ const getTodayISODate = () => {
 };
 
 export default function CRMSystem() {
-  const user = { role: 'Admin' };
+  const { user } = useAuth();
 
   // --- STATE DỮ LIỆU TỪ API ---
   const [customers, setCustomers] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [detailCustomerPurchaseHistory, setDetailCustomerPurchaseHistory] = useState([]);
   const [selectedCustomerForModal, setSelectedCustomerForModal] = useState(null);
-  console.log('sssssss ', staffList);
 
   // --- TRẠNG THÁI FORM ---
   const [editingId, setEditingId] = useState(null);
   const [editingHistoryId, setEditingHistoryId] = useState(null);
   const [isAddingPurchaseHistory, setIsAddingPurchaseHistory] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
 
   // Khởi tạo form với ngày mua hàng mặc định là ngày hiện tại
   const [formData, setFormData] = useState({
@@ -248,8 +250,23 @@ export default function CRMSystem() {
 
   const handleClearForm = () => {
     setFormData({
-      ...EMPTY_CUSTOMER,
-      singleDate: getTodayISODate() // Trả về ngày hiện tại khi xóa trắng form
+      fullName: '',
+      birthday: '',
+      address: '',
+      phone: '',
+      email: '',
+      facebook: '',
+      ecosystem: '',
+      singleDate: getTodayISODate(),
+      purchaseCount: 0,
+      products: '',
+      invoiceLink: '',
+      issue: '',
+      promotions: [],
+      careMethods: [],
+      consultant: '',
+      careStaff: '',
+      label: ''
     });
     setEditingId(null);
     setEditingHistoryId(null);
@@ -258,6 +275,17 @@ export default function CRMSystem() {
   };
 
   // --- HÀM THỰC THI THAY ĐỔI DỮ LIỆU QUA API SERVICES ---
+  const fetchCustomerById = async (customerId) => {
+    try {
+      const response = await ApiCustomer.getCustomerById(customerId);
+      const result = response?.DT || response;
+      return result && typeof result === 'object' ? result : null;
+    } catch (error) {
+      console.error('Lỗi tải chi tiết khách hàng:', error);
+      return null;
+    }
+  };
+
   const handleSaveData = async () => {
     if (!formData.fullName || !formData.phone || !formData.birthday) {
       setFormError('Vui lòng nhập tối thiểu Họ và tên, Ngày sinh, Số điện thoại!');
@@ -312,7 +340,15 @@ export default function CRMSystem() {
         }
       }
 
-      fetchCustomers();
+      await fetchCustomers();
+
+      if (selectedCustomerForModal?.id === editingId) {
+        const updatedCustomer = await fetchCustomerById(editingId);
+        if (updatedCustomer) {
+          setSelectedCustomerForModal(updatedCustomer);
+        }
+      }
+
       handleClearForm();
     } catch (err) {
       setFormError('Lỗi hệ thống khi lưu trữ hoặc phiên làm việc của bạn đã hết hạn.');
@@ -321,18 +357,24 @@ export default function CRMSystem() {
   };
 
   // --- HÀM XÓA ĐƠN HÀNG QUA SERVICE ---
-  const handleDeleteHistory = async (customerId, historyId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này không?')) return;
-
-    try {
-      await ApiPurchaseHistory.deletePurchaseHistory(historyId);
-      if (selectedCustomerForModal && selectedCustomerForModal.id === customerId) {
-        fetchCustomerPurchaseHistory(customerId);
+  const handleDeleteHistory = (customerId, historyId) => {
+    setConfirmState({
+      message: 'Bạn có chắc chắn muốn xóa giao dịch này không?',
+      onConfirm: async () => {
+        try {
+          await ApiPurchaseHistory.deletePurchaseHistory(historyId);
+          if (selectedCustomerForModal && selectedCustomerForModal.id === customerId) {
+            await fetchCustomerPurchaseHistory(customerId);
+          }
+          if (editingHistoryId === historyId) {
+            handleClearForm();
+          }
+          await fetchCustomers();
+        } catch (err) {
+          console.error("Lỗi xóa đơn hàng:", err);
+        }
       }
-      fetchCustomers();
-    } catch (err) {
-      console.error("Lỗi xóa đơn hàng:", err);
-    }
+    });
   };
 
   // --- ĐỔI NHÃN TRẠNG THÁI TRỰC TIẾP TRÊN BẢNG ---
@@ -356,6 +398,7 @@ export default function CRMSystem() {
       facebook: customer.facebook || '',
       ecosystem: customer.ecosystem || '',
       label: customer.label || '',
+      purchaseCount: customer.purchaseCount ?? 0,
       singleDate: getTodayISODate(), // Mặc định ngày hiện tại khi click thêm đơn hàng mới
       products: '',
       invoiceLink: '',
@@ -736,6 +779,17 @@ export default function CRMSystem() {
           }}
         />
       </main>
+
+      <ConfirmModal
+        open={!!confirmState}
+        title="Xác nhận xóa"
+        message={confirmState?.message}
+        danger
+        confirmText="Xóa"
+        onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+        onCancel={() => setConfirmState(null)}
+      />
+
     </div>
   );
 }

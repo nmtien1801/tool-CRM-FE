@@ -5,6 +5,7 @@ import ExpandableInput from '../components/ExpandableInput';
 import Pagination from '../components/Pagination';
 import ApiCustomer from '../api/ApiCustomer';
 import ApiAuth from '../api/ApiAuth';
+import ApiPurchaseHistory from '../api/ApiPurchaseHistory';
 import { LABELS } from './CRM';
 import { getBirthdayCustomers } from './ThongBao';
 
@@ -13,6 +14,7 @@ export default function ChamSocKhachHangPage() {
 
     const [customersData, setCustomersData] = useState([]);
     const [staffList, setStaffList] = useState([]);
+    const [purchaseHistoryMap, setPurchaseHistoryMap] = useState({});
     const [careStates, setCareStates] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
     const [filterLabel, setFilterLabel] = useState('');
@@ -53,26 +55,89 @@ export default function ChamSocKhachHangPage() {
         setIsLoading(true);
         setApiError(null);
         try {
-            const response = await ApiCustomer.getAllCustomers({
-                page: currentPage,
-                size: pageSize,
+            const params = {
                 search: searchTerm,
-                label: filterLabel
-            });
+                label: filterLabel,
+                page: currentPage,
+                pageSize: pageSize
+            };
 
-            if (response && response.EC === 0 && response.DT) {
-                const { rows, pagination } = response.DT;
+            const response = await ApiCustomer.getCustomers(params);
+            const result = response?.DT || response;
 
-                setCustomersData(rows || []);
-                setTotalItems(pagination?.totalItems || 0);
-                setTotalPages(pagination?.totalPages || 1);
-                setCurrentPage(pagination?.currentPage || 1);
+            let parsedCustomers = [];
+            let parsedTotalItems = 0;
+            let parsedTotalPages = 1;
+
+            if (result && typeof result === 'object') {
+                if ('rows' in result && Array.isArray(result.rows)) {
+                    parsedCustomers = result.rows;
+                    if (result.pagination) {
+                        parsedTotalItems = result.pagination.totalItems || 0;
+                        parsedTotalPages = result.pagination.totalPages || 1;
+                    }
+                }
+                else if ('items' in result) {
+                    parsedCustomers = Array.isArray(result.items) ? result.items : [];
+                    parsedTotalItems = result.total || result.totalItems || 0;
+                    parsedTotalPages = result.totalPages || 1;
+                }
+                else if ('customers' in result && Array.isArray(result.customers)) {
+                    parsedCustomers = result.customers;
+                    parsedTotalItems = result.total || result.totalItems || 0;
+                    parsedTotalPages = result.totalPages || 1;
+                }
+                else if (Array.isArray(result)) {
+                    parsedCustomers = result;
+                    parsedTotalItems = result.length;
+                    parsedTotalPages = 1;
+                } else {
+                    setCustomersData([]);
+                    setPurchaseHistoryMap({});
+                    setApiError("Không thể bóc tách dữ liệu từ máy chủ.");
+                    return;
+                }
             } else {
-                setApiError(response?.EM || "Không thể bóc tách dữ liệu từ máy chủ.");
+                setCustomersData([]);
+                setPurchaseHistoryMap({});
+                setApiError("Không thể bóc tách dữ liệu từ máy chủ.");
+                return;
+            }
+
+            setCustomersData(parsedCustomers);
+            setTotalItems(parsedTotalItems);
+            setTotalPages(parsedTotalPages);
+
+            if (parsedCustomers.length > 0) {
+                const historyResults = await Promise.all(
+                    parsedCustomers.map(async (customer) => {
+                        try {
+                            const historyResponse = await ApiPurchaseHistory.getCustomerPurchaseHistory(customer.id);
+                            const historyResult = historyResponse?.DT || historyResponse;
+                            return {
+                                customerId: customer.id,
+                                histories: Array.isArray(historyResult) ? historyResult : []
+                            };
+                        } catch (error) {
+                            console.error(`Lỗi tải lịch sử mua hàng cho khách hàng ${customer.id}:`, error);
+                            return { customerId: customer.id, histories: [] };
+                        }
+                    })
+                );
+
+                const nextHistoryMap = {};
+                historyResults.forEach(({ customerId, histories }) => {
+                    nextHistoryMap[customerId] = histories;
+                });
+                setPurchaseHistoryMap(nextHistoryMap);
+            } else {
+                setPurchaseHistoryMap({});
             }
         } catch (error) {
             console.error("Lỗi khi fetch dữ liệu khách hàng:", error);
             setApiError("Không thể tải dữ liệu từ máy chủ. Vui lòng thử lại sau.");
+            setCustomersData([]);
+            setPurchaseHistoryMap({});
         } finally {
             setIsLoading(false);
         }
@@ -90,59 +155,78 @@ export default function ChamSocKhachHangPage() {
         }));
     };
 
-    const handleSaveRow = (customerId, historyId) => {
+    const handleSaveRow = async (customerId, historyId, row) => {
         const rowData = careStates[historyId];
-        if (rowData) {
-            setCustomersData(prevList =>
-                prevList.map(cust => {
-                    if (cust.id === customerId) {
-                        const updatedHistories = (cust.purchaseHistories || []).map(hist => {
-                            if (hist.id === historyId) {
-                                return {
-                                    ...hist,
-                                    issue: rowData.careContent !== undefined ? rowData.careContent : hist.issue,
-                                    behaviorMetric: rowData.behaviorMetric !== undefined ? rowData.behaviorMetric : hist.behaviorMetric,
-                                    isCared: rowData.isCared ?? hist.isCared ?? false
-                                };
-                            }
-                            return hist;
-                        });
-                        return {
-                            ...cust,
-                            isCared: rowData.isCared ?? cust.isCared ?? false,
-                            purchaseHistories: updatedHistories
-                        };
-                    }
-                    return cust;
-                })
-            );
+        if (!rowData) return;
+
+        if (String(historyId).startsWith('empty-')) {
+            alert('Khách hàng này chưa có đơn hàng nào để lưu thông tin chăm sóc!');
+            return;
+        }
+
+        // ─── BỔ SUNG BEHAVIORMETRIC VÀ ISCARED VÀO PAYLOAD GỬI LÊN BE ───
+        const payload = {
+            issue: rowData.careContent ?? row?.issue ?? '',
+            careStaff: rowData.careStaff ?? row?.careStaff ?? '',
+            consultant: rowData.consultant ?? row?.consultant ?? '',
+            careMethods: rowData.careMethods ?? row?.careMethods ?? [],
+            promotions: rowData.promotions ?? row?.promotions ?? [],
+            products: rowData.products ?? row?.products ?? '',
+            invoiceLink: rowData.invoiceLink ?? row?.invoiceLink ?? '',
+            date: rowData.historyDate ?? row?.historyDate ?? '',
+            behaviorMetric: rowData.behaviorMetric ?? row?.behaviorMetric ?? '',
+            isCared: rowData.isCared ?? row?.isCared ?? false
+        };
+
+        try {
+            await ApiPurchaseHistory.updatePurchaseHistory(historyId, payload);
+
+            // ─── CẬP NHẬT ĐỒNG BỘ LẠI STATE LÊN GIAO DIỆN KHÔNG CẦN F5 ───
+            setPurchaseHistoryMap(prev => ({
+                ...prev,
+                [customerId]: (prev[customerId] || []).map(hist =>
+                    hist.id === historyId
+                        ? {
+                            ...hist,
+                            ...payload,
+                            issue: payload.issue,
+                            behaviorMetric: payload.behaviorMetric, // <-- Cập nhật lại UI hành vi
+                            isCared: payload.isCared
+                        }
+                        : hist
+                )
+            }));
+
             setCareStates(prev => {
                 const updated = { ...prev };
                 delete updated[historyId];
                 return updated;
             });
             alert('Đã cập nhật thông tin chăm sóc cho đơn hàng thành công!');
+        } catch (error) {
+            console.error("Lỗi khi lưu thông tin chăm sóc:", error);
+            alert('Lỗi hệ thống khi lưu thông tin chăm sóc, vui lòng thử lại!');
         }
     };
 
     const allRowItems = [];
     customersData.forEach(customer => {
-        const histories = customer.purchaseHistories || [];
+        const histories = purchaseHistoryMap[customer.id] || [];
         if (histories.length > 0) {
             histories.forEach(history => {
                 allRowItems.push({
                     ...customer,
                     historyId: history.id,
-                    historyDate: history.date,
-                    products: history.products,
-                    invoiceLink: history.invoiceLink,
-                    careMethods: history.careMethods || [],
-                    promotions: history.promotions || [],
-                    consultant: history.consultant,
-                    careStaff: history.careStaff,
-                    issue: history.issue,
+                    historyDate: history.date || '---',
+                    products: history.products || '---',
+                    invoiceLink: history.invoiceLink || '',
+                    careMethods: Array.isArray(history.careMethods) ? history.careMethods : [],
+                    promotions: Array.isArray(history.promotions) ? history.promotions : [],
+                    consultant: history.consultant || '',
+                    careStaff: history.careStaff || '',
+                    issue: history.issue || '',
                     behaviorMetric: history.behaviorMetric || '',
-                    isCared: history.isCared || false
+                    isCared: Boolean(history.issue || history.careStaff || history.careMethods?.length)
                 });
             });
         } else {
@@ -152,6 +236,7 @@ export default function ChamSocKhachHangPage() {
                 historyDate: '---',
                 products: '---',
                 careMethods: [],
+                promotions: [],
                 careStaff: '',
                 issue: '',
                 behaviorMetric: '',
@@ -408,7 +493,7 @@ export default function ChamSocKhachHangPage() {
                                                 <button
                                                     type="button"
                                                     disabled={!careStates[row.historyId]}
-                                                    onClick={() => handleSaveRow(row.id, row.historyId)}
+                                                    onClick={() => handleSaveRow(row.id, row.historyId, row)}
                                                     className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-bold border transition-all ${careStates[row.historyId]
                                                         ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 shadow-xs'
                                                         : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
