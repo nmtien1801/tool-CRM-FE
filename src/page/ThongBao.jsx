@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Bell, Phone, Mail, MapPin } from 'lucide-react';
-import { INITIAL_CUSTOMERS } from './CRM';
+import React, { useState, useEffect } from 'react';
+import { Bell, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import ApiCustomer from '../api/ApiCustomer';
 import EmailModal from '../components/CSM/Emailmodal';
 
 export function isBirthdayToday(birthday) {
@@ -18,11 +18,60 @@ export function getBirthdayCustomers(customers = []) {
 }
 
 export default function NotificationPage() {
-  const birthdayList = getBirthdayCustomers(INITIAL_CUSTOMERS);
+  const [birthdayList, setBirthdayList] = useState([]);
   const [emailTarget, setEmailTarget] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState(null);
+
+  // ─── HOOK FETCH TOÀN BỘ KHÁCH HÀNG ĐỂ QUÉT SINH NHẬT ───
+  const fetchAllCustomersBirthday = async () => {
+    setIsLoading(true);
+    setApiError(null);
+    try {
+      // Gọi API lấy danh sách (nếu BE có api lấy toàn bộ hoặc bạn nâng pageSize lên lớn để lọc)
+      const params = { page: 1, pageSize: 9999 };
+      const response = await ApiCustomer.getCustomers(params);
+      const result = response?.DT || response;
+
+      let parsedCustomers = [];
+
+      if (result && typeof result === 'object') {
+        if ('rows' in result && Array.isArray(result.rows)) {
+          parsedCustomers = result.rows;
+        } else if ('items' in result) {
+          parsedCustomers = Array.isArray(result.items) ? result.items : [];
+        } else if ('customers' in result && Array.isArray(result.customers)) {
+          parsedCustomers = result.customers;
+        } else if (Array.isArray(result)) {
+          parsedCustomers = result;
+        }
+      }
+
+      // Quét và chỉ lọc ra những khách hàng có sinh nhật hôm nay
+      const todaysBirthdays = getBirthdayCustomers(parsedCustomers);
+      setBirthdayList(todaysBirthdays);
+    } catch (error) {
+      console.error("Lỗi khi quét danh sách sinh nhật:", error);
+      setApiError("Không thể tải dữ liệu nhắc nhở sinh nhật từ máy chủ.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllCustomersBirthday();
+  }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative min-h-[400px]">
+      {/* Hiệu ứng Loading toàn trang khi đang fetch dữ liệu */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/60 z-50 flex flex-col items-center justify-center gap-2 rounded-2xl">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+          <span className="text-xs font-semibold text-slate-600">Đang đồng bộ dữ liệu nhắc nhở...</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -41,10 +90,17 @@ export default function NotificationPage() {
         </span>
       </div>
 
+      {/* Thông báo lỗi nếu API gặp sự cố */}
+      {apiError && (
+        <div className="p-4 text-center text-xs text-rose-500 font-medium bg-rose-50 border border-rose-100 rounded-xl">
+          {apiError}
+        </div>
+      )}
+
       {/* Danh sách sinh nhật */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">
             Danh sách sinh nhật hôm nay
           </span>
           <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100">
@@ -70,12 +126,12 @@ export default function NotificationPage() {
                     <div className="flex items-center gap-1">
                       <Phone className="w-3 h-3 text-slate-400" />
                       <span className="text-slate-400">SĐT:</span>{' '}
-                      <span className="font-semibold text-slate-800">{customer.phone}</span>
+                      <span className="font-semibold text-slate-800">{customer.phone || '---'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Ngày sinh:</span>{' '}
                       <span className="font-medium text-slate-800">
-                        {new Date(customer.birthday + 'T00:00:00').toLocaleDateString('vi-VN')}
+                        {customer.birthday ? new Date(customer.birthday).toLocaleDateString('vi-VN') : '---'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -101,9 +157,11 @@ export default function NotificationPage() {
               </div>
             ))
           ) : (
-            <div className="py-12 text-center text-sm text-slate-400 italic">
-              Hôm nay không có sinh nhật khách hàng nào trong hệ thống.
-            </div>
+            !isLoading && (
+              <div className="py-12 text-center text-sm text-slate-400 italic">
+                Hôm nay không có sinh nhật khách hàng nào trong hệ thống.
+              </div>
+            )
           )}
         </div>
       </div>

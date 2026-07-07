@@ -46,7 +46,6 @@ export default function ChamSocKhachHangPage() {
             setStaffList(filteredStaff);
         } catch (error) {
             console.error("Lỗi khi lấy danh sách user:", error);
-            alert("Không thể tải danh sách thành viên!");
         }
     };
 
@@ -114,6 +113,7 @@ export default function ChamSocKhachHangPage() {
                         try {
                             const historyResponse = await ApiPurchaseHistory.getCustomerPurchaseHistory(customer.id);
                             const historyResult = historyResponse?.DT || historyResponse;
+
                             return {
                                 customerId: customer.id,
                                 histories: Array.isArray(historyResult) ? historyResult : []
@@ -160,13 +160,12 @@ export default function ChamSocKhachHangPage() {
         if (!rowData) return;
 
         if (String(historyId).startsWith('empty-')) {
-            alert('Khách hàng này chưa có đơn hàng nào để lưu thông tin chăm sóc!');
             return;
         }
 
-        // ─── BỔ SUNG BEHAVIORMETRIC VÀ ISCARED VÀO PAYLOAD GỬI LÊN BE ───
+        // Gom đầy đủ payload gửi lên Backend bao gồm cả issue, behaviorMetric và isCared
         const payload = {
-            issue: rowData.careContent ?? row?.issue ?? '',
+            issue: rowData.issue ?? row?.issue ?? '',
             careStaff: rowData.careStaff ?? row?.careStaff ?? '',
             consultant: rowData.consultant ?? row?.consultant ?? '',
             careMethods: rowData.careMethods ?? row?.careMethods ?? [],
@@ -181,7 +180,7 @@ export default function ChamSocKhachHangPage() {
         try {
             await ApiPurchaseHistory.updatePurchaseHistory(historyId, payload);
 
-            // ─── CẬP NHẬT ĐỒNG BỘ LẠI STATE LÊN GIAO DIỆN KHÔNG CẦN F5 ───
+            // Cập nhật lại Map để giao diện hiển thị đồng bộ tức thì không cần F5
             setPurchaseHistoryMap(prev => ({
                 ...prev,
                 [customerId]: (prev[customerId] || []).map(hist =>
@@ -190,22 +189,21 @@ export default function ChamSocKhachHangPage() {
                             ...hist,
                             ...payload,
                             issue: payload.issue,
-                            behaviorMetric: payload.behaviorMetric, // <-- Cập nhật lại UI hành vi
+                            behaviorMetric: payload.behaviorMetric,
                             isCared: payload.isCared
                         }
                         : hist
                 )
             }));
 
+            // Xóa state tạm thời của dòng vừa lưu để disabled nút Lưu
             setCareStates(prev => {
                 const updated = { ...prev };
                 delete updated[historyId];
                 return updated;
             });
-            alert('Đã cập nhật thông tin chăm sóc cho đơn hàng thành công!');
         } catch (error) {
             console.error("Lỗi khi lưu thông tin chăm sóc:", error);
-            alert('Lỗi hệ thống khi lưu thông tin chăm sóc, vui lòng thử lại!');
         }
     };
 
@@ -226,7 +224,8 @@ export default function ChamSocKhachHangPage() {
                     careStaff: history.careStaff || '',
                     issue: history.issue || '',
                     behaviorMetric: history.behaviorMetric || '',
-                    isCared: Boolean(history.issue || history.careStaff || history.careMethods?.length)
+                    // SỬA LỖI: Ưu tiên nhận isCared từ Backend trả về trước, tránh tự ép kiểu sai
+                    isCared: history.isCared ?? Boolean(history.issue || history.careStaff || history.careMethods?.length)
                 });
             });
         } else {
@@ -245,8 +244,6 @@ export default function ChamSocKhachHangPage() {
         }
     });
 
-    // Search (tên/SĐT/email) và Giai đoạn khách hàng đã được lọc từ server qua fetchCustomers.
-    // Ở đây chỉ còn lọc thêm theo Nhân viên CSKH và Trạng thái chăm sóc trên tập dữ liệu của trang hiện tại.
     const filteredRows = allRowItems.filter(row => {
         const currentState = careStates[row.historyId] || {};
         const isCaredNow = currentState.isCared ?? row.isCared;
@@ -398,10 +395,13 @@ export default function ChamSocKhachHangPage() {
                                         label: row.label || 'Lạnh',
                                         color: 'bg-gray-100 text-gray-700 border-gray-300'
                                     };
+
                                     const currentState = careStates[row.historyId] || {};
                                     const isChecked = currentState.isCared ?? row.isCared;
-                                    const careContent = currentState.careContent ?? '';
-                                    const behaviorMetric = currentState.behaviorMetric ?? '';
+
+                                    // SỬA ĐỒNG BỘ: Sử dụng trực tiếp trường issue cho cả state và dữ liệu gốc
+                                    const careContent = currentState.issue ?? row.issue ?? '';
+                                    const behaviorMetric = currentState.behaviorMetric ?? row.behaviorMetric ?? '';
 
                                     return (
                                         <tr key={row.historyId} className="hover:bg-slate-50/60 transition-colors">
@@ -458,7 +458,8 @@ export default function ChamSocKhachHangPage() {
                                             <td className="px-4 py-4">
                                                 <ExpandableInput
                                                     value={careContent}
-                                                    onChange={(newValue) => handleInputChange(row.historyId, 'careContent', newValue)}
+                                                    // SỬA ĐỒNG BỘ: Dùng 'issue' thay vì 'careContent'
+                                                    onChange={(newValue) => handleInputChange(row.historyId, 'issue', newValue)}
                                                     placeholder="Nhập nội dung chăm sóc..."
                                                     title={`Nội dung chăm sóc - Khách hàng: ${row.fullName}`}
                                                 />
