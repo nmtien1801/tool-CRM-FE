@@ -6,6 +6,7 @@ const ApiCustomer = {
   createCustomer: (data) => ApiManager.post(`/customers`, data),
   updateCustomer: (id, data) => ApiManager.put(`/customers/${id}`, data),
   deleteCustomer: (id) => ApiManager.delete(`/customers/${id}`),
+  getCustomerTotalSpent: (id) => ApiManager.get(`/customers/${id}/total-spent`),
 };
 
 export default ApiCustomer;

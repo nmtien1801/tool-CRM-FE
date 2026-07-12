@@ -136,7 +136,7 @@ export const EMPTY_CUSTOMER = {
   category: "",
   itemType: "",
   quote: "",
-  price: "",
+  price: 0,
   // Nhóm 4 bổ sung: thuê, thanh toán, nguồn khách hàng
   rentalDays: 0,
   paymentMethod: "",

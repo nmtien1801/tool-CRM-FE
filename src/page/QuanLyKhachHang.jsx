@@ -38,6 +38,8 @@ export default function CRMSystem() {
   const [staffList, setStaffList] = useState([]);
   const [detailCustomerPurchaseHistory, setDetailCustomerPurchaseHistory] = useState([]);
   const [selectedCustomerForModal, setSelectedCustomerForModal] = useState(null);
+  // State lưu trữ tổng số tiền đã mua theo customerId
+  const [totalSpentMap, setTotalSpentMap] = useState({});
 
   // --- TRẠNG THÁI FORM ---
   const [editingId, setEditingId] = useState(null);
@@ -53,7 +55,7 @@ export default function CRMSystem() {
     category: '',
     itemType: '',
     quote: '',
-    price: '',
+    price: 0,
     // Nhóm 4 bổ sung
     rentalDays: 0,
     paymentMethod: '',
@@ -147,6 +149,30 @@ export default function CRMSystem() {
   useEffect(() => {
     fetchCustomers();
   }, [currentPage, pageSize, crmSearch, crmFilterLabel, crmFilterEco]);
+
+  // API: Gọi tổng số tiền đã mua của từng khách hàng khi danh sách thay đổi
+  useEffect(() => {
+    const fetchAllTotalSpent = async () => {
+      if (!customers || customers.length === 0) return;
+
+      const spentData = {};
+      await Promise.all(
+        customers.map(async (cust) => {
+          try {
+            const res = await ApiCustomer.getCustomerTotalSpent(cust.id);
+            // Giả định API trả về định dạng { EC, EM, DT: số tiền } hoặc trực tiếp số tiền
+            spentData[cust.id] = res?.DT?.totalSpent !== undefined ? res.DT.totalSpent : (res || 0);
+          } catch (err) {
+            console.error(`Lỗi tải tổng tiền tích lũy khách hàng ${cust.id}:`, err);
+            spentData[cust.id] = 0;
+          }
+        })
+      );
+      setTotalSpentMap(spentData);
+    };
+
+    fetchAllTotalSpent();
+  }, [customers]);
 
   // 3. API: Gọi chi tiết lịch sử giao dịch của khách hàng được chọn
   const fetchCustomerPurchaseHistory = async (customerId) => {
@@ -296,7 +322,7 @@ export default function CRMSystem() {
       category: '',
       itemType: '',
       quote: '',
-      price: '',
+      price: 0,
       // Nhóm 4 bổ sung
       rentalDays: 0,
       paymentMethod: '',
@@ -458,7 +484,7 @@ export default function CRMSystem() {
       category: '',
       itemType: '',
       quote: '',
-      price: '',
+      price: 0,
       // Nhóm 4 bổ sung
       rentalDays: 0,
       paymentMethod: '',
@@ -802,14 +828,15 @@ export default function CRMSystem() {
             )}
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[980px] table-fixed">
+              <table className="w-full text-left border-collapse min-w-[1150px] table-fixed">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    <th className="px-4 py-4 w-72">Thông tin cơ bản</th>
-                    <th className="px-4 py-4 w-72">Kênh liên hệ</th>
-                    <th className="px-4 py-4 w-72">Tổng số lần mua hàng</th>
-                    <th className="px-4 py-4 w-48 text-center">Nhãn trạng thái</th>
-                    <th className="px-4 py-4 w-44 text-center">Hành động</th>
+                    <th className="px-4 py-4 w-64">Thông tin cơ bản</th>
+                    <th className="px-4 py-4 w-64">Kênh liên hệ</th>
+                    <th className="px-4 py-4 w-40">Tổng số lần mua</th>
+                    <th className="px-4 py-4 w-44 text-center">Nhãn trạng thái</th>
+                    <th className="px-4 py-4 w-44 text-center">Tổng tiền đã mua</th>
+                    <th className="px-4 py-4 w-40 text-center">Hành động</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-xs">
@@ -834,6 +861,13 @@ export default function CRMSystem() {
                           {LABELS.map(l => <option key={l.value} value={l.value} className="bg-white text-slate-800 font-normal text-left">{l.label}</option>)}
                         </select>
                       </td>
+                      <td className="px-4 py-4 text-center font-bold text-emerald-600 text-sm">
+                        {totalSpentMap[cust.id] !== undefined ? (
+                          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalSpentMap[cust.id])
+                        ) : (
+                          <span className="text-slate-400 font-normal text-xs italic">Đang tải...</span>
+                        )}
+                      </td>
                       <td className="px-4 py-4 text-center">
                         <div className="flex flex-col gap-1 items-center">
                           <button onClick={() => handleOpenModal(cust)} className="w-full py-1 text-[11px] bg-indigo-600 text-white rounded-lg border border-indigo-600">Xem chi tiết</button>
@@ -844,7 +878,7 @@ export default function CRMSystem() {
                   ))}
                   {(!Array.isArray(customers) || customers.length === 0) && !isLoading && (
                     <tr>
-                      <td colSpan="5" className="text-center py-8 text-slate-400 italic">Không tìm thấy khách hàng nào khớp với bộ lọc.</td>
+                      <td colSpan="6" className="text-center py-8 text-slate-400 italic">Không tìm thấy khách hàng nào khớp với bộ lọc.</td>
                     </tr>
                   )}
                 </tbody>
@@ -884,7 +918,7 @@ export default function CRMSystem() {
               category: history.category || '',
               itemType: history.itemType || '',
               quote: history.quote || '',
-              price: history.price || '',
+              price: history.price || 0,
               // Nhóm 4 bổ sung
               rentalDays: history.rentalDays ?? 0,
               paymentMethod: history.paymentMethod || '',

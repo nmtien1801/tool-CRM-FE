@@ -1,20 +1,48 @@
-import React from 'react';
-import { Edit, Trash2, ExternalLink, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Edit, Trash2, ExternalLink, Plus, Search } from 'lucide-react';
 
 export default function CustomerDetailModal({
   customer,
   onClose,
-  onAddTransaction, // Thêm prop để xử lý sự kiện thêm giao dịch
+  onAddTransaction,
   onEditTransaction,
   onDeleteTransaction,
   staffOptions = [],
   getPurchaseHistoriesFn
 }) {
+  // --- STATE TÌM KIẾM & LỌC NGÀY ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   if (!customer) return null;
 
-  // Lấy lịch sử giao dịch thông qua hàm helper được truyền từ cha
+  // Lấy lịch sử giao dịch thông qua hàm helper được truyền từ cha[cite: 2]
   const histories = getPurchaseHistoriesFn ? getPurchaseHistoriesFn(customer) : (customer.purchaseHistories || []);
   const validHistories = histories.filter(h => h.date || h.products || h.invoiceLink);
+
+  // --- LOGIC LỌC DỮ LIỆU TẠI CLIENT ---
+  const filteredHistories = validHistories.filter(history => {
+    // 1. Lọc theo từ khóa tìm kiếm (Sản phẩm, Hạng mục, Báo giá, Người bán...)
+    const matchesSearch = searchTerm.trim() === '' ||
+      (history.products && history.products.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (history.category && history.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (history.quote && history.quote.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (history.seller && history.seller.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    // 2. Lọc theo khoảng ngày (Từ ngày - Đến ngày)
+    const matchesStartDate = !startDate || (history.date && history.date >= startDate);
+    const matchesEndDate = !endDate || (history.date && history.date <= endDate);
+
+    return matchesSearch && matchesStartDate && matchesEndDate;
+  });
+
+  // Hàm xóa nhanh các bộ lọc
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/45 px-4 py-6 flex items-center justify-center">
@@ -28,7 +56,6 @@ export default function CustomerDetailModal({
             </h3>
           </div>
           <div className="flex gap-2">
-            {/* Nút Thêm giao dịch mới */}
             <button
               type="button"
               onClick={() => onAddTransaction && onAddTransaction(customer)}
@@ -48,12 +75,61 @@ export default function CustomerDetailModal({
           </div>
         </div>
 
+        {/* THANH TÌM KIẾM VÀ LỌC NGÀY MỚI BỔ SUNG */}
+        <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-4">
+          {/* Ô tìm kiếm từ khóa */}
+          <div className="relative flex-1 min-w-[260px]">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm theo sản phẩm, hạng mục, báo giá..."
+              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Bộ lọc Từ ngày */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase">Từ:</span>
+            <input
+              type="date"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-medium"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+            />
+          </div>
+
+          {/* Bộ lọc Đến ngày */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase">Đến:</span>
+            <input
+              type="date"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-medium"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+            />
+          </div>
+
+          {/* Nút xóa nhanh bộ lọc */}
+          {(searchTerm || startDate || endDate) && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-xl transition-all"
+            >
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
+
         {/* Nội dung Modal */}
         <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
           <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
             <div className="px-4 py-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
               <span className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Chi tiết giao dịch</span>
               <div className="text-xs text-slate-500 font-medium">
+                Kết quả tìm thấy: <span className="font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded mr-3">{filteredHistories.length} / {validHistories.length} dòng</span>
                 Tổng số lần giao dịch: <span className="font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded ml-1">lần {customer.purchaseCount}</span>
               </div>
             </div>
@@ -83,8 +159,8 @@ export default function CustomerDetailModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
-                  {validHistories.length > 0 ? (
-                    validHistories.map((history, index) => (
+                  {filteredHistories.length > 0 ? (
+                    filteredHistories.map((history, index) => (
                       <tr key={history.id || index} className="hover:bg-slate-50/40 transition-colors align-top divide-x divide-slate-100">
                         <td className="px-4 py-4 font-semibold text-slate-400 text-center">{index + 1}</td>
                         <td className="px-4 py-4 font-bold text-slate-900 whitespace-nowrap border-l border-slate-200 bg-indigo-50/5">
@@ -94,7 +170,6 @@ export default function CustomerDetailModal({
                           {history.products || '---'}
                         </td>
 
-                        {/* CỘT HÓA ĐƠN ĐÃ THAY ĐỔI SANG HIỂN THỊ LINK URL */}
                         <td className="px-4 py-4 text-center whitespace-nowrap bg-indigo-50/5">
                           {history.invoiceLink ? (
                             <div className="flex justify-center items-center h-full pt-1">
@@ -245,7 +320,11 @@ export default function CustomerDetailModal({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="18" className="text-xs text-slate-400 italic p-6 text-center">Chưa có lịch sử giao dịch phân tách độc lập.</td>
+                      <td colSpan="18" className="text-xs text-slate-400 italic p-6 text-center">
+                        {validHistories.length > 0
+                          ? 'Không tìm thấy lịch sử giao dịch nào khớp với bộ lọc tìm kiếm.'
+                          : 'Chưa có lịch sử giao dịch phân tách độc lập.'}
+                      </td>
                     </tr>
                   )}
                 </tbody>
