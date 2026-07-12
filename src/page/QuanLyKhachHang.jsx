@@ -16,8 +16,11 @@ import {
   ECOSYSTEM_OPTIONS,
   LABELS,
   CARE_METHODS,
-  EMPTY_CUSTOMER
-} from './CRM'; // Chú ý điều chỉnh tên file gán (./CRM hoặc ./mockData) cho đúng thư mục của bạn
+  EMPTY_CUSTOMER,
+  ITEM_TYPE_OPTIONS,
+  PAYMENT_METHOD_OPTIONS,
+  CUSTOMER_SOURCE_OPTIONS
+} from './CRM';
 
 // Hàm phụ trợ lấy chuỗi ngày hiện tại YYYY-MM-DD theo giờ địa phương, tránh lệch múi giờ
 const getTodayISODate = () => {
@@ -45,7 +48,18 @@ export default function CRMSystem() {
   // Khởi tạo form với ngày mua hàng mặc định là ngày hiện tại
   const [formData, setFormData] = useState({
     ...EMPTY_CUSTOMER,
-    singleDate: getTodayISODate()
+    singleDate: getTodayISODate(),
+    // Nhóm 3 bổ sung
+    category: '',
+    itemType: '',
+    quote: '',
+    price: '',
+    // Nhóm 4 bổ sung
+    rentalDays: 0,
+    paymentMethod: '',
+    customerSource: '',
+    // Nhóm 5 bổ sung
+    seller: ''
   });
   const [promoEvent, setPromoEvent] = useState('');
 
@@ -244,6 +258,17 @@ export default function CRMSystem() {
         consultant: matchStaffName(fields.consultant) || prev.consultant,
         careStaff: matchStaffName(fields.careStaff) || prev.careStaff,
         label: fields.label || prev.label,
+        // Nhóm 3 bổ sung
+        category: fields.category || prev.category,
+        itemType: fields.itemType || prev.itemType,
+        quote: fields.quote || prev.quote,
+        price: fields.price || prev.price,
+        // Nhóm 4 bổ sung
+        rentalDays: fields.rentalDays || prev.rentalDays,
+        paymentMethod: fields.paymentMethod || prev.paymentMethod,
+        customerSource: fields.customerSource || prev.customerSource,
+        // Nhóm 5 bổ sung
+        seller: matchStaffName(fields.seller) || prev.seller,
       };
     });
   };
@@ -266,7 +291,18 @@ export default function CRMSystem() {
       careMethods: [],
       consultant: '',
       careStaff: '',
-      label: ''
+      label: '',
+      // Nhóm 3 bổ sung
+      category: '',
+      itemType: '',
+      quote: '',
+      price: '',
+      // Nhóm 4 bổ sung
+      rentalDays: 0,
+      paymentMethod: '',
+      customerSource: '',
+      // Nhóm 5 bổ sung
+      seller: ''
     });
     setEditingId(null);
     setEditingHistoryId(null);
@@ -301,7 +337,18 @@ export default function CRMSystem() {
       careMethods: formData.careMethods || [],
       promotions: formData.promotions || [],
       consultant: formData.consultant,
-      careStaff: formData.careStaff
+      careStaff: formData.careStaff,
+      // Nhóm 3 bổ sung: chi tiết hạng mục / báo giá
+      category: formData.category,
+      itemType: formData.itemType,
+      quote: formData.quote,
+      price: formData.price,
+      // Nhóm 4 bổ sung: thuê, thanh toán, nguồn khách hàng
+      rentalDays: formData.rentalDays,
+      paymentMethod: formData.paymentMethod,
+      customerSource: formData.customerSource,
+      // Nhóm 5 bổ sung: người bán
+      seller: formData.seller
     };
 
     const customerPayload = {
@@ -406,7 +453,18 @@ export default function CRMSystem() {
       careMethods: [],
       promotions: [],
       consultant: '',
-      careStaff: ''
+      careStaff: '',
+      // Nhóm 3 bổ sung
+      category: '',
+      itemType: '',
+      quote: '',
+      price: '',
+      // Nhóm 4 bổ sung
+      rentalDays: 0,
+      paymentMethod: '',
+      customerSource: '',
+      // Nhóm 5 bổ sung
+      seller: ''
     });
     setEditingId(customer.id);
     setEditingHistoryId(null);
@@ -566,14 +624,36 @@ export default function CRMSystem() {
                     <div className="flex flex-col justify-end">
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm đã mua</label>
-                          <input type="text" placeholder="Chi tiết sản phẩm" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800" value={formData.products || ''} onChange={e => setFormData({ ...formData, products: e.target.value })} />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm dịch vụ</label>
+                          <input type="text" placeholder="Tên sản phẩm dịch vụ" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800" value={formData.products || ''} onChange={e => setFormData({ ...formData, products: e.target.value })} />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn hóa đơn (URL Link)</label>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hóa đơn đầu ra</label>
                           <input type="text" placeholder="Nhập đường dẫn URL hóa đơn..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.invoiceLink || ''} onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })} />
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hạng mục</label>
+                      <input type="text" placeholder="Nhập hạng mục" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.category || ''} onChange={e => setFormData({ ...formData, category: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phân loại</label>
+                      <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.itemType || ''} onChange={e => setFormData({ ...formData, itemType: e.target.value })}>
+                        <option value="">-- Chọn phân loại --</option>
+                        {ITEM_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
+                      <input type="text" placeholder="Nhập báo giá" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.quote || ''} onChange={e => setFormData({ ...formData, quote: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá</label>
+                      <input type="text" inputMode="numeric" placeholder="Nhập giá" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                     </div>
                   </div>
                 </div>
@@ -582,6 +662,26 @@ export default function CRMSystem() {
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 4: Chăm sóc &amp; Tiếp thị</h4>
                   <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số ngày thuê</label>
+                        <input type="number" min="0" placeholder="0" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.rentalDays ?? 0} onChange={e => setFormData({ ...formData, rentalDays: e.target.value === '' ? 0 : Number(e.target.value) })} />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức thanh toán</label>
+                        <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.paymentMethod || ''} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}>
+                          <option value="">-- Chọn phương thức --</option>
+                          {PAYMENT_METHOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nguồn khách hàng</label>
+                        <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.customerSource || ''} onChange={e => setFormData({ ...formData, customerSource: e.target.value })}>
+                          <option value="">-- Chọn nguồn --</option>
+                          {CUSTOMER_SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mối quan tâm / Vấn đề</label>
                       <ExpandableInput value={formData.issue || ''} onChange={(newValue) => setFormData({ ...formData, issue: newValue })} placeholder="Nhu cầu khách hàng..." />
@@ -618,7 +718,18 @@ export default function CRMSystem() {
                 {/* Nhóm 5: Nhân sự phụ trách */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 5: Phân sự nội bộ</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Người bán</label>
+                      <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.seller || ''} onChange={e => setFormData({ ...formData, seller: e.target.value })}>
+                        <option value="">-- Chọn người bán --</option>
+                        {staffList.map(s => (
+                          <option key={s.id} value={s.fullName}>
+                            {s.fullName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên tư vấn</label>
                       <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.consultant || ''} onChange={e => setFormData({ ...formData, consultant: e.target.value })}>
@@ -768,7 +879,18 @@ export default function CRMSystem() {
               careMethods: history.careMethods || [],
               promotions: history.promotions || [],
               consultant: history.consultant || '',
-              careStaff: history.careStaff || ''
+              careStaff: history.careStaff || '',
+              // Nhóm 3 bổ sung
+              category: history.category || '',
+              itemType: history.itemType || '',
+              quote: history.quote || '',
+              price: history.price || '',
+              // Nhóm 4 bổ sung
+              rentalDays: history.rentalDays ?? 0,
+              paymentMethod: history.paymentMethod || '',
+              customerSource: history.customerSource || '',
+              // Nhóm 5 bổ sung
+              seller: history.seller || ''
             });
             setEditingId(selectedCustomerForModal.id);
             setEditingHistoryId(history.id);

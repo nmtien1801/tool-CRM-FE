@@ -1,9 +1,8 @@
 // mockData.js
 
 export const ECOSYSTEM_OPTIONS = [
-  { value: "retail", label: "Bán lẻ TMĐT" },
-  { value: "course", label: "Khóa học Online" },
-  { value: "coaching", label: "Tư vấn 1:1" },
+  { value: "CMIC_STUDIO", label: "CMIC STUDIO" },
+  { value: "CMIC_MEDIA", label: "CMIC MEDIA" },
 ];
 
 export const LABELS = [
@@ -59,6 +58,30 @@ export const LABELS = [
   },
 ];
 
+// Nhóm 3 bổ sung: phân loại hạng mục (bán / dịch vụ)
+export const ITEM_TYPE_OPTIONS = [
+  { value: "ban", label: "Bán" },
+  { value: "dich_vu", label: "Dịch vụ" },
+];
+
+// Nhóm 4 bổ sung: phương thức thanh toán
+export const PAYMENT_METHOD_OPTIONS = [
+  { value: "momo", label: "Momo" },
+  { value: "ngan_hang", label: "Ngân hàng" },
+  { value: "tien_mat", label: "Tiền mặt" },
+];
+
+// Nhóm 4 bổ sung: nguồn khách hàng
+export const CUSTOMER_SOURCE_OPTIONS = [
+  { value: "fanpage", label: "Fanpage" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "youtube", label: "YouTube" },
+  { value: "zalo", label: "Zalo" },
+  { value: "website", label: "Website" },
+  { value: "partner", label: "Partner" },
+  { value: "sale", label: "Sale" },
+];
+
 export const CARE_METHODS = [
   { value: "Email Marketing", label: "Email Marketing" },
   { value: "SMS", label: "SMS" },
@@ -109,6 +132,17 @@ export const EMPTY_CUSTOMER = {
   invoiceLink: "",
   label: "Lạnh",
   singleDate: "",
+  // Nhóm 3 bổ sung: chi tiết hạng mục / báo giá
+  category: "",
+  itemType: "",
+  quote: "",
+  price: "",
+  // Nhóm 4 bổ sung: thuê, thanh toán, nguồn khách hàng
+  rentalDays: 0,
+  paymentMethod: "",
+  customerSource: "",
+  // Nhóm 5 bổ sung: người bán
+  seller: "",
 };
 
 // Danh sách khách hàng gốc (Đã lược bỏ purchaseHistories lồng bên trong)
@@ -140,6 +174,17 @@ export const INITIAL_PURCHASE_HISTORIES = [
     consultant: "NguyenVanA",
     careStaff: "TranThiB",
     issue: "Cần tìm tool tối ưu quy trình render video tự động",
+    // Nhóm 3 bổ sung
+    category: "Khóa học Video Editing",
+    itemType: "dich_vu",
+    quote: "2.500.000đ",
+    price: "2.200.000đ",
+    // Nhóm 4 bổ sung
+    rentalDays: 0,
+    paymentMethod: "ngan_hang",
+    customerSource: "fanpage",
+    // Nhóm 5 bổ sung
+    seller: "NguyenVanA",
   },
   {
     id: "1-1",
@@ -152,5 +197,16 @@ export const INITIAL_PURCHASE_HISTORIES = [
     consultant: "TranThiB",
     careStaff: "LeVanC",
     issue: "Cần tìm tool tối ưu quy trình render video tự động",
+    // Nhóm 3 bổ sung
+    category: "Gói nâng cấp Video Editing",
+    itemType: "ban",
+    quote: "1.000.000đ",
+    price: "900.000đ",
+    // Nhóm 4 bổ sung
+    rentalDays: 0,
+    paymentMethod: "momo",
+    customerSource: "zalo",
+    // Nhóm 5 bổ sung
+    seller: "TranThiB",
   },
 ];

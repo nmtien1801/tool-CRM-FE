@@ -11,7 +11,7 @@ export default function CustomerDetailModal({
   getPurchaseHistoriesFn
 }) {
   if (!customer) return null;
-  
+
   // Lấy lịch sử giao dịch thông qua hàm helper được truyền từ cha
   const histories = getPurchaseHistoriesFn ? getPurchaseHistoriesFn(customer) : (customer.purchaseHistories || []);
   const validHistories = histories.filter(h => h.date || h.products || h.invoiceLink);
@@ -59,17 +59,25 @@ export default function CustomerDetailModal({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs min-w-[1500px]">
+              <table className="w-full text-left border-collapse text-xs min-w-[2200px]">
                 <thead>
                   <tr className="bg-slate-50/70 border-b border-slate-200 font-bold text-slate-600 uppercase tracking-wider text-[10px]">
                     <th className="px-4 py-3.5 text-center w-12 bg-slate-50/40">STT</th>
                     <th className="px-4 py-3.5 w-32 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">Ngày giao dịch</th>
                     <th className="px-4 py-3.5 w-60 bg-indigo-50/20 text-indigo-900">Sản phẩm</th>
                     <th className="px-4 py-3.5 text-center w-36 bg-indigo-50/20 text-indigo-900">Hóa đơn (URL)</th>
+                    <th className="px-4 py-3.5 w-40 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">Hạng mục</th>
+                    <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Phân loại</th>
+                    <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Báo giá</th>
+                    <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Giá</th>
+                    <th className="px-4 py-3.5 w-28 border-l border-slate-200 bg-sky-50/20 text-sky-900">Số ngày thuê</th>
+                    <th className="px-4 py-3.5 w-36 bg-sky-50/20 text-sky-900">Thanh toán</th>
+                    <th className="px-4 py-3.5 w-36 bg-sky-50/20 text-sky-900">Nguồn khách hàng</th>
                     <th className="px-4 py-3.5 w-64 border-l border-slate-200 bg-amber-50/20 text-amber-900">Mối quan tâm</th>
                     <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Quà tặng áp dụng</th>
                     <th className="px-4 py-3.5 w-48 bg-amber-50/20 text-amber-900">Kênh tiếp cận</th>
-                    <th className="px-4 py-3.5 w-44 border-l border-slate-200 bg-emerald-50/20 text-emerald-900">Nhân sự tư vấn</th>
+                    <th className="px-4 py-3.5 w-44 border-l border-slate-200 bg-emerald-50/20 text-emerald-900">Người bán</th>
+                    <th className="px-4 py-3.5 w-44 bg-emerald-50/20 text-emerald-900">Nhân sự tư vấn</th>
                     <th className="px-4 py-3.5 w-44 bg-emerald-50/20 text-emerald-900">Người chăm sóc</th>
                     <th className="px-4 py-3.5 text-center w-40 border-l border-slate-200 bg-slate-100 text-slate-700">Hành động</th>
                   </tr>
@@ -106,6 +114,45 @@ export default function CustomerDetailModal({
                           )}
                         </td>
 
+                        <td className="px-4 py-4 text-slate-800 font-medium break-words border-l border-slate-200 bg-indigo-50/5">
+                          {history.category || <span className="text-slate-300 italic">Trống</span>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700 whitespace-nowrap bg-indigo-50/5">
+                          {history.itemType === 'ban' ? (
+                            <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded-md text-[11px] font-bold">Bán</span>
+                          ) : history.itemType === 'dich_vu' ? (
+                            <span className="bg-violet-50 border border-violet-200 text-violet-700 px-2 py-0.5 rounded-md text-[11px] font-bold">Dịch vụ</span>
+                          ) : (
+                            <span className="text-slate-300 italic">Trống</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700 break-words bg-indigo-50/5">
+                          {history.quote || <span className="text-slate-300 italic">Trống</span>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-900 font-bold whitespace-nowrap bg-indigo-50/5">
+                          {history.price || <span className="text-slate-300 italic font-normal">Trống</span>}
+                        </td>
+                        <td className="px-4 py-4 text-center font-bold text-sky-700 border-l border-slate-200 bg-sky-50/5">
+                          {history.rentalDays || 0}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-sky-50/5">
+                          {history.paymentMethod ? (
+                            <span className="bg-sky-50 border border-sky-200 text-sky-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                              {{ momo: 'Momo', ngan_hang: 'Ngân hàng', tien_mat: 'Tiền mặt' }[history.paymentMethod] || history.paymentMethod}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic">Trống</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-sky-50/5">
+                          {history.customerSource ? (
+                            <span className="bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                              {{ fanpage: 'Fanpage', tiktok: 'TikTok', youtube: 'YouTube', zalo: 'Zalo', website: 'Website', partner: 'Partner', sale: 'Sale' }[history.customerSource] || history.customerSource}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic">Trống</span>
+                          )}
+                        </td>
                         <td className="px-4 py-4 text-slate-700 font-medium leading-relaxed break-words border-l border-slate-200 bg-amber-50/5">
                           {history.issue || customer.issue || <span className="text-slate-400 italic">Chưa ghi nhận</span>}
                         </td>
@@ -142,6 +189,15 @@ export default function CustomerDetailModal({
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap border-l border-slate-200 bg-emerald-50/5">
+                          {history.seller ? (
+                            <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                              {staffOptions.find(s => s.value === history.seller)?.label || history.seller}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Chưa chỉ định</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-emerald-50/5">
                           {history.consultant ? (
                             <span className="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-md text-[11px]">
                               {staffOptions.find(s => s.value === history.consultant)?.label || history.consultant}
@@ -189,7 +245,7 @@ export default function CustomerDetailModal({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="10" className="text-xs text-slate-400 italic p-6 text-center">Chưa có lịch sử giao dịch phân tách độc lập.</td>
+                      <td colSpan="18" className="text-xs text-slate-400 italic p-6 text-center">Chưa có lịch sử giao dịch phân tách độc lập.</td>
                     </tr>
                   )}
                 </tbody>

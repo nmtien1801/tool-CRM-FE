@@ -61,6 +61,17 @@ export default function InvoiceImageUploader({ onExtracted }) {
       let extractedSalesConsultant = '';
       let extractedCsConsultant = '';
       let extractedInvoiceLink = '';
+      // Nhóm 3 bổ sung
+      let extractedCategory = '';
+      let extractedItemType = '';
+      let extractedQuote = '';
+      let extractedPrice = '';
+      // Nhóm 4 bổ sung
+      let extractedRentalDays = '';
+      let extractedPaymentMethod = '';
+      let extractedCustomerSource = '';
+      // Nhóm 5 bổ sung
+      let extractedSeller = '';
 
       // XỬ LÝ ĐẶC BIỆT: Nối lại link Drive nếu bị AI cắt xuống dòng lỗi
       let chuẩnHóaText = text.replace(/(https?:\/\/drive\.google\.com\/[^\s]+)-\s*\n\s*([^\s]+)/gi, '$1-$2');
@@ -191,6 +202,62 @@ export default function InvoiceImageUploader({ onExtracted }) {
           }
         }
 
+        // 16b. Quét Hạng mục
+        if (/(hang muc):\s*(.*)/i.test(cleanLineNoAccent)) {
+          const match = cleanLineOriginal.match(/[^:]+:\s*(.*)/i);
+          if (match?.[1]) extractedCategory = match[1].trim();
+        }
+
+        // 16c. Quét Phân loại (Bán / Dịch vụ)
+        if (/(phan loai):\s*(.*)/i.test(cleanLineNoAccent)) {
+          const match = cleanLineNoAccent.match(/[^:]+:\s*(.*)/i);
+          const value = match?.[1]?.trim().toLowerCase() || '';
+          if (/dich\s*vu/.test(value)) extractedItemType = 'dich_vu';
+          else if (/ban/.test(value)) extractedItemType = 'ban';
+        }
+
+        // 16d. Quét Báo giá
+        if (/(bao gia):\s*(.*)/i.test(cleanLineNoAccent)) {
+          const match = cleanLineOriginal.match(/[^:]+:\s*(.*)/i);
+          if (match?.[1]) extractedQuote = match[1].trim();
+        }
+
+        // 16e. Quét Giá
+        if (/(^|\s)(gia):\s*(.*)/i.test(cleanLineNoAccent)) {
+          const match = cleanLineOriginal.match(/[^:]+:\s*(.*)/i);
+          if (match?.[1]) extractedPrice = match[1].trim();
+        }
+
+        // 16f. Quét Số ngày thuê
+        if (/(so ngay thue):\s*(.*)/i.test(cleanLineNoAccent)) {
+          const match = cleanLineOriginal.match(/[^:]+:\s*(.*)/i);
+          if (match?.[1]) extractedRentalDays = match[1].replace(/\D/g, '').trim();
+        }
+
+        // 16g. Quét Phương thức thanh toán
+        if (/(phuong thuc thanh toan):\s*(.*)/i.test(cleanLineNoAccent)) {
+          const match = cleanLineNoAccent.match(/[^:]+:\s*(.*)/i);
+          const value = match?.[1]?.trim().toLowerCase() || '';
+          if (/momo/.test(value)) extractedPaymentMethod = 'momo';
+          else if (/ngan\s*hang/.test(value)) extractedPaymentMethod = 'ngan_hang';
+          else if (/tien\s*mat/.test(value)) extractedPaymentMethod = 'tien_mat';
+        }
+
+        // 16h. Quét Nguồn khách hàng
+        if (/(nguon khach hang):\s*(.*)/i.test(cleanLineNoAccent)) {
+          const match = cleanLineNoAccent.match(/[^:]+:\s*(.*)/i);
+          const value = match?.[1]?.trim().toLowerCase() || '';
+          const sourceMap = { fanpage: 'fanpage', tiktok: 'tiktok', youtube: 'youtube', zalo: 'zalo', website: 'website', partner: 'partner', sale: 'sale' };
+          const foundKey = Object.keys(sourceMap).find(k => value.includes(k));
+          if (foundKey) extractedCustomerSource = sourceMap[foundKey];
+        }
+
+        // 16i. Quét Người bán
+        if (/(nguoi ban):\s*(.*)/i.test(cleanLineNoAccent)) {
+          const match = cleanLineOriginal.match(/[^:]+:\s*(.*)/i);
+          if (match?.[1]) extractedSeller = match[1].trim();
+        }
+
         // 16. Quét Link hóa đơn đầu ra
         const urlMatch = cleanLineOriginal.match(/https?:\/\/[^\s]+/i);
         if (urlMatch && (urlMatch[0].includes('drive.google') || urlMatch[0].includes('.pdf'))) {
@@ -228,6 +295,17 @@ export default function InvoiceImageUploader({ onExtracted }) {
         consultant: extractedSalesConsultant,
         careStaff: extractedCsConsultant,
         invoiceLink: extractedInvoiceLink,
+        // Nhóm 3 bổ sung
+        category: extractedCategory,
+        itemType: extractedItemType,
+        quote: extractedQuote,
+        price: extractedPrice,
+        // Nhóm 4 bổ sung
+        rentalDays: extractedRentalDays ? (parseInt(extractedRentalDays, 10) || 0) : 0,
+        paymentMethod: extractedPaymentMethod,
+        customerSource: extractedCustomerSource,
+        // Nhóm 5 bổ sung
+        seller: extractedSeller,
         label: 'Đã mua hàng'
       });
     } catch (error) {
