@@ -60,6 +60,7 @@ export default function CRMSystem() {
     rentalDays: 0,
     paymentMethod: '',
     customerSource: '',
+    referralCustomerId: '',
     // Nhóm 5 bổ sung
     seller: ''
   });
@@ -329,6 +330,7 @@ export default function CRMSystem() {
       rentalDays: 0,
       paymentMethod: '',
       customerSource: '',
+      referralCustomerId: '',
       // Nhóm 5 bổ sung
       seller: ''
     });
@@ -375,6 +377,7 @@ export default function CRMSystem() {
       rentalDays: formData.rentalDays,
       paymentMethod: formData.paymentMethod,
       customerSource: formData.customerSource,
+      referralCustomerId: formData.referralCustomerId || null,
       // Nhóm 5 bổ sung: người bán
       seller: formData.seller
     };
@@ -387,7 +390,8 @@ export default function CRMSystem() {
       email: formData.email,
       facebook: formData.facebook,
       ecosystem: formData.ecosystem,
-      label: formData.label
+      label: formData.label,
+      referralCustomerId: formData.referralCustomerId || null
     };
 
     const isHistoryValid = historyPayload.date || historyPayload.products || historyPayload.invoiceLink;
@@ -491,6 +495,7 @@ export default function CRMSystem() {
       rentalDays: 0,
       paymentMethod: '',
       customerSource: '',
+      referralCustomerId: '',
       // Nhóm 5 bổ sung
       seller: ''
     });
@@ -505,6 +510,7 @@ export default function CRMSystem() {
   const handleEditClick = (customer) => {
     setFormData({
       ...customer,
+      referralCustomerId: customer.referralCustomerId ?? '',
       singleDate: toISODate(customer.singleDate) || getTodayISODate(),
       products: customer.products || ''
     });
@@ -524,6 +530,8 @@ export default function CRMSystem() {
     value: s.username || s.id,
     label: s.fullName || s.username
   }));
+
+  const referralCustomerOptions = (customers || []).filter((customer) => String(customer.id) !== String(editingId));
 
   if (!user || user.role !== 'Admin') {
     return (
@@ -690,7 +698,7 @@ export default function CRMSystem() {
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 4: Chăm sóc &amp; Tiếp thị</h4>
                   <div className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số ngày thuê</label>
                         <input type="number" min="0" placeholder="0" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.rentalDays ?? 0} onChange={e => setFormData({ ...formData, rentalDays: e.target.value === '' ? 0 : Number(e.target.value) })} />
@@ -707,6 +715,15 @@ export default function CRMSystem() {
                         <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.customerSource || ''} onChange={e => setFormData({ ...formData, customerSource: e.target.value })}>
                           <option value="">-- Chọn nguồn --</option>
                           {CUSTOMER_SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khách hàng giới thiệu</label>
+                        <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.referralCustomerId ?? ''} onChange={e => setFormData({ ...formData, referralCustomerId: e.target.value })}>
+                          <option value="">-- Chọn khách hàng giới thiệu --</option>
+                          {referralCustomerOptions.map(customer => (
+                            <option key={customer.id} value={customer.id}>{customer.fullName} -- ID: {customer.id}</option>
+                          ))}
                         </select>
                       </div>
                     </div>

@@ -142,6 +142,7 @@ export const EMPTY_CUSTOMER = {
   rentalDays: 0,
   paymentMethod: "",
   customerSource: "",
+  referralCustomerId: "",
   // Nhóm 5 bổ sung: người bán
   seller: "",
 };
@@ -184,6 +185,7 @@ export const INITIAL_PURCHASE_HISTORIES = [
     rentalDays: 0,
     paymentMethod: "ngan_hang",
     customerSource: "fanpage",
+    referralCustomerId: "",
     // Nhóm 5 bổ sung
     seller: "NguyenVanA",
   },
@@ -207,6 +209,7 @@ export const INITIAL_PURCHASE_HISTORIES = [
     rentalDays: 0,
     paymentMethod: "momo",
     customerSource: "zalo",
+    referralCustomerId: "",
     // Nhóm 5 bổ sung
     seller: "TranThiB",
   },
