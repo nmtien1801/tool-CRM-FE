@@ -145,7 +145,7 @@ export default function CustomerDetailModal({
                     <th className="px-4 py-3.5 w-40 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">Hạng mục</th>
                     <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Phân loại</th>
                     <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Báo giá</th>
-                    <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Giá</th>
+                    <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Giá chốt</th>
                     <th className="px-4 py-3.5 w-28 border-l border-slate-200 bg-sky-50/20 text-sky-900">Số ngày thuê</th>
                     <th className="px-4 py-3.5 w-36 bg-sky-50/20 text-sky-900">Thanh toán</th>
                     <th className="px-4 py-3.5 w-36 bg-sky-50/20 text-sky-900">Nguồn khách hàng</th>

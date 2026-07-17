@@ -375,6 +375,7 @@ export default function ChamSocKhachHangPage() {
                             <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                                 <th className="px-4 py-3 min-w-[240px]">Thông tin cơ bản</th>
                                 <th className="px-4 py-3 min-w-[240px]">Kênh liên hệ</th>
+                                <th className="px-4 py-3 min-w-[180px]">Phương thức chăm sóc</th>
                                 <th className="px-4 py-3 min-w-[140px]">Giai đoạn khách hàng</th>
                                 <th className="px-4 py-3 min-w-[220px]">Sản phẩm - Dịch vụ đã mua/tư vấn</th>
                                 <th className="px-4 py-3 min-w-[220px]">Nội dung đã chăm sóc</th>
@@ -441,6 +442,17 @@ export default function ChamSocKhachHangPage() {
                                                         </a>
                                                     ) : (
                                                         <span className="text-slate-400 italic">Ẩn (Không dùng kênh)</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 bg-slate-50/30">
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {careMethods.length > 0 ? careMethods.map((method) => (
+                                                        <span key={`${row.historyId}-${method}`} className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700">
+                                                            {method}
+                                                        </span>
+                                                    )) : (
+                                                        <span className="text-[10px] italic text-slate-400">Chưa chọn</span>
                                                     )}
                                                 </div>
                                             </td>

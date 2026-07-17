@@ -67,6 +67,7 @@ export default function CRMSystem() {
 
   // --- BỘ LỌC VÀ PHÂN TRANG (SERVER-SIDE) ---
   const [crmSearch, setCrmSearch] = useState('');
+  const [crmSearchById, setCrmSearchById] = useState('');
   const [crmFilterLabel, setCrmFilterLabel] = useState('');
   const [crmFilterEco, setCrmFilterEco] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -101,6 +102,7 @@ export default function CRMSystem() {
     try {
       const params = {
         search: crmSearch,
+        id: crmSearchById,
         label: crmFilterLabel,
         ecosystem: crmFilterEco,
         page: currentPage,
@@ -148,7 +150,7 @@ export default function CRMSystem() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [currentPage, pageSize, crmSearch, crmFilterLabel, crmFilterEco]);
+  }, [currentPage, pageSize, crmSearch, crmSearchById, crmFilterLabel, crmFilterEco]);
 
   // API: Gọi tổng số tiền đã mua của từng khách hàng khi danh sách thay đổi
   useEffect(() => {
@@ -678,7 +680,7 @@ export default function CRMSystem() {
                       <input type="text" placeholder="Nhập báo giá" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.quote || ''} onChange={e => setFormData({ ...formData, quote: e.target.value })} />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá</label>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá chốt</label>
                       <input type="text" inputMode="numeric" placeholder="Nhập giá" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                     </div>
                   </div>
@@ -799,6 +801,9 @@ export default function CRMSystem() {
         {/* BẢNG DỮ LIỆU CRM CHÍNH */}
         <div className="space-y-4 pt-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap gap-4 items-center shadow-xs">
+            <div className="flex-1 min-w-[220px]">
+              <input type="text" placeholder="Tìm theo Mã khách hàng" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm" value={crmSearchById || ''} onChange={e => { setCrmSearchById(e.target.value); setCurrentPage(1); }} />
+            </div>
             <div className="flex-1 min-w-[280px]">
               <input type="text" placeholder="Tìm kiếm theo Tên, SĐT, Email..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm" value={crmSearch || ''} onChange={e => { setCrmSearch(e.target.value); setCurrentPage(1); }} />
             </div>
@@ -831,6 +836,7 @@ export default function CRMSystem() {
               <table className="w-full text-left border-collapse min-w-[1150px] table-fixed">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    <th className="px-4 py-4 w-40">Mã khách hàng</th>
                     <th className="px-4 py-4 w-64">Thông tin cơ bản</th>
                     <th className="px-4 py-4 w-64">Kênh liên hệ</th>
                     <th className="px-4 py-4 w-40">Tổng số lần mua</th>
@@ -842,6 +848,9 @@ export default function CRMSystem() {
                 <tbody className="divide-y divide-slate-200 text-xs">
                   {Array.isArray(customers) && customers.map(cust => (
                     <tr key={cust.id} className="hover:bg-slate-50/60 transition-colors align-top">
+                      <td className="px-4 py-4 text-start font-mono text-slate-700 text-[11px]">
+                        {cust.id}
+                      </td>
                       <td className="px-3 py-3 space-y-1">
                         <span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span>
                         <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{cust.birthday}</span></div>

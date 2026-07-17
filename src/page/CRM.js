@@ -80,6 +80,7 @@ export const CUSTOMER_SOURCE_OPTIONS = [
   { value: "website", label: "Website" },
   { value: "partner", label: "Partner" },
   { value: "sale", label: "Sale" },
+  { value: "gioiThieu", label: "Giới thiệu" },
 ];
 
 export const CARE_METHODS = [
