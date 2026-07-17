@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Shield, Trash2, Key, Search, X, AlertTriangle, Loader2, Lock } from 'lucide-react';
 import ApiAuth from '../api/ApiAuth';
+import SearchableSelect from '../components/SearchableSelect';
 import { useAuth } from '../context/AuthContext';
 
 export default function DashboardPage() {
@@ -174,15 +175,17 @@ export default function DashboardPage() {
         </div>
 
         <div className="w-full sm:w-48">
-          <select
+          <SearchableSelect
+            options={[
+              { value: '', label: 'Tất cả vai trò' },
+              { value: 'Admin', label: 'Admin' },
+              { value: 'Staff', label: 'Staff' }
+            ]}
             value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium"
-          >
-            <option value="">Tất cả vai trò</option>
-            <option value="Admin">Admin</option>
-            <option value="Staff">Staff</option>
-          </select>
+            placeholder="Tất cả vai trò"
+            onChange={(value) => setFilterRole(value)}
+            className="w-full"
+          />
         </div>
       </div>
 
@@ -279,10 +282,16 @@ export default function DashboardPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">Vai trò</label>
-                <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700">
-                  <option value="Staff">Staff</option>
-                  <option value="Admin">Admin</option>
-                </select>
+                <SearchableSelect
+                  options={[
+                    { value: 'Staff', label: 'Staff' },
+                    { value: 'Admin', label: 'Admin' }
+                  ]}
+                  value={newUser.role}
+                  placeholder="Chọn vai trò"
+                  onChange={(value) => setNewUser({ ...newUser, role: value })}
+                  className="w-full"
+                />
               </div>
             </div>
             <div className="px-5 py-3 border-t border-slate-150 flex justify-end gap-2 bg-slate-50">

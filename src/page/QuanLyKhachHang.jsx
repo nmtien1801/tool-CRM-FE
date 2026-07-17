@@ -5,6 +5,7 @@ import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
 import ExpandableInput from '../components/ExpandableInput';
 import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/CRM/ConfirmModal';
+import SearchableSelect from '../components/SearchableSelect';
 import { useAuth } from '../context/AuthContext';
 
 // Import lại các API Services độc lập theo yêu cầu của bạn
@@ -629,10 +630,14 @@ export default function CRMSystem() {
                     </div>
                     <div className="md:col-span-3">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hệ sinh thái</label>
-                      <select disabled={isAddingPurchaseHistory} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.ecosystem || ''} onChange={e => setFormData({ ...formData, ecosystem: e.target.value })}>
-                        <option value="">-- Click để chọn hệ sinh thái --</option>
-                        {ECOSYSTEM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
+                      <SearchableSelect
+                        disabled={isAddingPurchaseHistory}
+                        options={ECOSYSTEM_OPTIONS}
+                        value={formData.ecosystem || ''}
+                        placeholder="-- Click để chọn hệ sinh thái --"
+                        onChange={(value) => setFormData({ ...formData, ecosystem: value })}
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 </div>
@@ -678,10 +683,13 @@ export default function CRMSystem() {
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phân loại</label>
-                      <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.itemType || ''} onChange={e => setFormData({ ...formData, itemType: e.target.value })}>
-                        <option value="">-- Chọn phân loại --</option>
-                        {ITEM_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
+                      <SearchableSelect
+                        options={ITEM_TYPE_OPTIONS}
+                        value={formData.itemType || ''}
+                        placeholder="-- Chọn phân loại --"
+                        onChange={(value) => setFormData({ ...formData, itemType: value })}
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
@@ -705,26 +713,36 @@ export default function CRMSystem() {
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức thanh toán</label>
-                        <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.paymentMethod || ''} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}>
-                          <option value="">-- Chọn phương thức --</option>
-                          {PAYMENT_METHOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
+                        <SearchableSelect
+                          options={PAYMENT_METHOD_OPTIONS}
+                          value={formData.paymentMethod || ''}
+                          placeholder="-- Chọn phương thức --"
+                          onChange={(value) => setFormData({ ...formData, paymentMethod: value })}
+                          className="w-full"
+                        />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nguồn khách hàng</label>
-                        <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.customerSource || ''} onChange={e => setFormData({ ...formData, customerSource: e.target.value })}>
-                          <option value="">-- Chọn nguồn --</option>
-                          {CUSTOMER_SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
+                        <SearchableSelect
+                          options={CUSTOMER_SOURCE_OPTIONS}
+                          value={formData.customerSource || ''}
+                          placeholder="-- Chọn nguồn --"
+                          onChange={(value) => setFormData({ ...formData, customerSource: value })}
+                          className="w-full"
+                        />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khách hàng giới thiệu</label>
-                        <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.referralCustomerId ?? ''} onChange={e => setFormData({ ...formData, referralCustomerId: e.target.value })}>
-                          <option value="">-- Chọn khách hàng giới thiệu --</option>
-                          {referralCustomerOptions.map(customer => (
-                            <option key={customer.id} value={customer.id}>{customer.fullName} -- ID: {customer.id}</option>
-                          ))}
-                        </select>
+                        <SearchableSelect
+                          options={referralCustomerOptions.map(customer => ({
+                            value: customer.id,
+                            label: `${customer.fullName} -- ID: ${customer.id}`
+                          }))}
+                          value={formData.referralCustomerId ?? ''}
+                          placeholder="-- Chọn khách hàng giới thiệu --"
+                          onChange={(value) => setFormData({ ...formData, referralCustomerId: value })}
+                          className="w-full"
+                        />
                       </div>
                     </div>
                     <div>
@@ -766,36 +784,33 @@ export default function CRMSystem() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Người bán</label>
-                      <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.seller || ''} onChange={e => setFormData({ ...formData, seller: e.target.value })}>
-                        <option value="">-- Chọn người bán --</option>
-                        {staffList.map(s => (
-                          <option key={s.id} value={s.fullName}>
-                            {s.fullName}
-                          </option>
-                        ))}
-                      </select>
+                      <SearchableSelect
+                        options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
+                        value={formData.seller || ''}
+                        placeholder="-- Chọn người bán --"
+                        onChange={(value) => setFormData({ ...formData, seller: value })}
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên tư vấn</label>
-                      <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.consultant || ''} onChange={e => setFormData({ ...formData, consultant: e.target.value })}>
-                        <option value="">-- Chọn nhân sự tư vấn --</option>
-                        {staffList.map(s => (
-                          <option key={s.id} value={s.fullName}>
-                            {s.fullName}
-                          </option>
-                        ))}
-                      </select>
+                      <SearchableSelect
+                        options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
+                        value={formData.consultant || ''}
+                        placeholder="-- Chọn nhân sự tư vấn --"
+                        onChange={(value) => setFormData({ ...formData, consultant: value })}
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên chăm sóc</label>
-                      <select className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs" value={formData.careStaff || ''} onChange={e => setFormData({ ...formData, careStaff: e.target.value })}>
-                        <option value="">-- Chọn nhân sự chăm sóc --</option>
-                        {staffList.map(s => (
-                          <option key={s.id} value={s.fullName}>
-                            {s.fullName}
-                          </option>
-                        ))}
-                      </select>
+                      <SearchableSelect
+                        options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
+                        value={formData.careStaff || ''}
+                        placeholder="-- Chọn nhân sự chăm sóc --"
+                        onChange={(value) => setFormData({ ...formData, careStaff: value })}
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 </div>
@@ -805,9 +820,14 @@ export default function CRMSystem() {
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 6: Trạng thái &amp; Gán nhãn</h4>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Gán nhãn phân cấp</label>
-                    <select disabled={isAddingPurchaseHistory} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-indigo-600 disabled:bg-slate-100 disabled:text-slate-500" value={formData.label || ''} onChange={e => setFormData({ ...formData, label: e.target.value })}>
-                      {LABELS.map(l => <option key={l.value} value={l.value} className="text-slate-800 font-normal text-left">{l.label}</option>)}
-                    </select>
+                    <SearchableSelect
+                      disabled={isAddingPurchaseHistory}
+                      options={LABELS.map(l => ({ value: l.value, label: l.label }))}
+                      value={formData.label || ''}
+                      placeholder="-- Chọn giai đoạn --"
+                      onChange={(value) => setFormData({ ...formData, label: value })}
+                      className="w-full"
+                    />
                   </div>
                 </div>
               </div>
@@ -824,20 +844,30 @@ export default function CRMSystem() {
             <div className="flex-1 min-w-[280px]">
               <input type="text" placeholder="Tìm kiếm theo Tên, SĐT, Email..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm" value={crmSearch || ''} onChange={e => { setCrmSearch(e.target.value); setCurrentPage(1); }} />
             </div>
-            <select className="w-[180px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" value={crmFilterLabel || ''} onChange={e => { setCrmFilterLabel(e.target.value); setCurrentPage(1); }}>
-              <option value="">Lọc theo nhãn gán</option>
-              {LABELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-            </select>
-            <select className="w-[180px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" value={crmFilterEco || ''} onChange={e => { setCrmFilterEco(e.target.value); setCurrentPage(1); }}>
-              <option value="">Lọc theo hệ sinh thái</option>
-              {ECOSYSTEM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <SearchableSelect
+              options={LABELS.map(l => ({ value: l.value, label: l.label }))}
+              value={crmFilterLabel || ''}
+              placeholder="Lọc theo nhãn gán"
+              onChange={(value) => { setCrmFilterLabel(value); setCurrentPage(1); }}
+              className="w-[180px]"
+            />
+            <SearchableSelect
+              options={ECOSYSTEM_OPTIONS}
+              value={crmFilterEco || ''}
+              placeholder="Tất cả hệ sinh thái"
+              onChange={(value) => { setCrmFilterEco(value); setCurrentPage(1); }}
+              className="w-[180px]"
+            />
 
             <div className="flex items-center gap-1.5 text-xs text-slate-500 ml-auto">
               <span>Hiển thị:</span>
-              <select className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-medium text-slate-700 focus:outline-none" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}>
-                {[5, 10, 20, 50].map(size => <option key={size} value={size}>{size} dòng</option>)}
-              </select>
+              <SearchableSelect
+                options={[5, 10, 20, 50].map(size => ({ value: size, label: `${size} dòng` }))}
+                value={pageSize}
+                placeholder="Chọn số dòng"
+                onChange={(value) => { setPageSize(Number(value)); setCurrentPage(1); }}
+                className="w-[120px]"
+              />
             </div>
           </div>
 
@@ -883,9 +913,13 @@ export default function CRMSystem() {
                         <span className="font-bold text-indigo-600">lần {cust.purchaseCount}</span>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <select value={cust.label || ''} onChange={e => handleLabelChange(cust.id, e.target.value)} className={`text-xs font-bold px-2 py-1.5 rounded-xl border cursor-pointer w-full text-center transition-all ${LABELS.find(l => l.value === cust.label)?.color}`}>
-                          {LABELS.map(l => <option key={l.value} value={l.value} className="bg-white text-slate-800 font-normal text-left">{l.label}</option>)}
-                        </select>
+                        <SearchableSelect
+                          options={LABELS.map(l => ({ value: l.value, label: l.label }))}
+                          value={cust.label || ''}
+                          placeholder="Chọn nhãn"
+                          onChange={(value) => handleLabelChange(cust.id, value)}
+                          className={`w-full ${LABELS.find(l => l.value === cust.label)?.color || 'bg-white text-slate-800'}`}
+                        />
                       </td>
                       <td className="px-4 py-4 text-center font-bold text-emerald-600 text-sm">
                         {totalSpentMap[cust.id] !== undefined ? (

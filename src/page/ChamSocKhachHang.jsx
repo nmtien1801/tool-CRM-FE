@@ -3,6 +3,7 @@ import { Save, Search, Bell, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ExpandableInput from '../components/ExpandableInput';
 import Pagination from '../components/Pagination';
+import SearchableSelect from '../components/SearchableSelect';
 import ApiCustomer from '../api/ApiCustomer';
 import ApiAuth from '../api/ApiAuth';
 import ApiPurchaseHistory from '../api/ApiPurchaseHistory';
@@ -304,53 +305,47 @@ export default function ChamSocKhachHangPage() {
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Giai đoạn khách hàng</label>
-                    <select
+                    <SearchableSelect
+                        options={LABELS.map(l => ({ value: l.value, label: l.label }))}
                         value={filterLabel}
-                        onChange={(e) => { setFilterLabel(e.target.value); setCurrentPage(1); }}
-                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-hidden focus:border-indigo-500"
-                    >
-                        <option value="">Tất cả giai đoạn</option>
-                        {LABELS.map(l => (
-                            <option key={l.value} value={l.value}>{l.label}</option>
-                        ))}
-                    </select>
+                        placeholder="Tất cả giai đoạn"
+                        onChange={(value) => { setFilterLabel(value); setCurrentPage(1); }}
+                        className="w-full"
+                    />
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Nhân viên CSKH</label>
-                    <select
+                    <SearchableSelect
+                        options={staffList.map(staff => ({ value: staff.fullName, label: staff.fullName }))}
                         value={filterStaff}
-                        onChange={(e) => { setFilterStaff(e.target.value); setCurrentPage(1); }}
-                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-hidden focus:border-indigo-500"
-                    >
-                        <option value="">Tất cả nhân viên</option>
-                        {staffList.map(staff => (
-                            <option key={staff.id} value={staff.fullName}>{staff.fullName}</option>
-                        ))}
-                    </select>
+                        placeholder="Tất cả nhân viên"
+                        onChange={(value) => { setFilterStaff(value); setCurrentPage(1); }}
+                        className="w-full"
+                    />
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Trạng thái chăm sóc</label>
-                    <select
+                    <SearchableSelect
+                        options={[
+                            { value: 'all', label: 'Tất cả trạng thái' },
+                            { value: 'cared', label: 'Đã tích chọn (Đang/Đã chăm sóc)' },
+                            { value: 'not_cared', label: 'Chưa tích chọn' }
+                        ]}
                         value={filterCareStatus}
-                        onChange={(e) => setFilterCareStatus(e.target.value)}
-                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-hidden focus:border-indigo-500"
-                    >
-                        <option value="all">Tất cả trạng thái</option>
-                        <option value="cared">Đã tích chọn (Đang/Đã chăm sóc)</option>
-                        <option value="not_cared">Chưa tích chọn</option>
-                    </select>
+                        placeholder="Tất cả trạng thái"
+                        onChange={(value) => setFilterCareStatus(value)}
+                        className="w-full"
+                    />
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Hiển thị</label>
-                    <select
+                    <SearchableSelect
+                        options={[5, 10, 20, 50].map(size => ({ value: size, label: `${size} khách hàng/trang` }))}
                         value={pageSize}
-                        onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-hidden focus:border-indigo-500"
-                    >
-                        {[5, 10, 20, 50].map(size => (
-                            <option key={size} value={size}>{size} khách hàng/trang</option>
-                        ))}
-                    </select>
+                        placeholder="Chọn số dòng"
+                        onChange={(value) => { setPageSize(Number(value)); setCurrentPage(1); }}
+                        className="w-full"
+                    />
                 </div>
             </div>
 
