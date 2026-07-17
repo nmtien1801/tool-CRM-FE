@@ -135,7 +135,7 @@ export default function CustomerDetailModal({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs min-w-[2200px]">
+              <table className="w-full text-left border-collapse text-xs min-w-[2350px]">
                 <thead>
                   <tr className="bg-slate-50/70 border-b border-slate-200 font-bold text-slate-600 uppercase tracking-wider text-[10px]">
                     <th className="px-4 py-3.5 text-center w-12 bg-slate-50/40">STT</th>
@@ -149,6 +149,7 @@ export default function CustomerDetailModal({
                     <th className="px-4 py-3.5 w-28 border-l border-slate-200 bg-sky-50/20 text-sky-900">Số ngày thuê</th>
                     <th className="px-4 py-3.5 w-36 bg-sky-50/20 text-sky-900">Thanh toán</th>
                     <th className="px-4 py-3.5 w-36 bg-sky-50/20 text-sky-900">Nguồn khách hàng</th>
+                    <th className="px-4 py-3.5 w-44 bg-sky-50/20 text-sky-900">Khách hàng giới thiệu</th>
                     <th className="px-4 py-3.5 w-64 border-l border-slate-200 bg-amber-50/20 text-amber-900">Mối quan tâm</th>
                     <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Quà tặng áp dụng</th>
                     <th className="px-4 py-3.5 w-48 bg-amber-50/20 text-amber-900">Kênh tiếp cận</th>
@@ -226,6 +227,15 @@ export default function CustomerDetailModal({
                             </span>
                           ) : (
                             <span className="text-slate-300 italic">Trống</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-sky-50/5">
+                          {history.referralCustomerId ? (
+                            <span className="bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                              ID: {history.referralCustomerId}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic">Không có</span>
                           )}
                         </td>
                         <td className="px-4 py-4 text-slate-700 font-medium leading-relaxed break-words border-l border-slate-200 bg-amber-50/5">
@@ -320,7 +330,7 @@ export default function CustomerDetailModal({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="18" className="text-xs text-slate-400 italic p-6 text-center">
+                      <td colSpan="19" className="text-xs text-slate-400 italic p-6 text-center">
                         {validHistories.length > 0
                           ? 'Không tìm thấy lịch sử giao dịch nào khớp với bộ lọc tìm kiếm.'
                           : 'Chưa có lịch sử giao dịch phân tách độc lập.'}

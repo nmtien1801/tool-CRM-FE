@@ -558,7 +558,7 @@ export default function CRMSystem() {
             <div>
               <div className="flex flex-wrap justify-between items-center border-b border-slate-100 pb-3 mb-4 gap-2">
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-indigo-600">
-                  Biểu mẫu thông tin khách hàng (Chế độ Live API)
+                  Biểu mẫu thông tin khách hàng
                 </h3>
                 <div className="flex gap-2">
                   <button type="button" onClick={handleSaveData} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1">
@@ -964,33 +964,56 @@ export default function CRMSystem() {
           onAddTransaction={handleAddTransactionFromModal}
           onDeleteTransaction={(historyId) => handleDeleteHistory(selectedCustomerForModal.id, historyId)}
           onEditTransaction={(history) => {
+            // 1. Lưu lại ID của khách hàng trước khi đóng modal
+            const customerId = selectedCustomerForModal?.id;
+
+            if (!customerId || !history?.id) {
+              setFormError('Không tìm thấy mã định danh giao dịch hoặc khách hàng.');
+              return;
+            }
+
+            // 2. Cập nhật FormData chuẩn chỉnh từ cả thông tin khách hàng hiện tại VÀ chi tiết lịch sử giao dịch
             setFormData({
-              ...selectedCustomerForModal,
+              ...EMPTY_CUSTOMER, // Reset về cấu trúc trống trước
+              // Giữ lại thông tin cá nhân khách hàng (vì giao dịch không chứa những cái này)
+              fullName: selectedCustomerForModal.fullName || '',
+              birthday: selectedCustomerForModal.birthday || '',
+              address: selectedCustomerForModal.address || '',
+              phone: selectedCustomerForModal.phone || '',
+              email: selectedCustomerForModal.email || '',
+              facebook: selectedCustomerForModal.facebook || '',
+              ecosystem: selectedCustomerForModal.ecosystem || '',
+              label: selectedCustomerForModal.label || '',
+              purchaseCount: selectedCustomerForModal.purchaseCount ?? 0,
+              referralCustomerId: selectedCustomerForModal.referralCustomerId ?? '',
+
+              // Điền chính xác thông tin từ Lịch sử giao dịch (history) vào form
               singleDate: toISODate(history.date) || getTodayISODate(),
               products: history.products || '',
               invoiceLink: history.invoiceLink || '',
               issue: history.issue || '',
-              careMethods: history.careMethods || [],
-              promotions: history.promotions || [],
+              careMethods: Array.isArray(history.careMethods) ? history.careMethods : [],
+              promotions: Array.isArray(history.promotions) ? history.promotions : [],
               consultant: history.consultant || '',
               careStaff: history.careStaff || '',
-              // Nhóm 3 bổ sung
               category: history.category || '',
               itemType: history.itemType || '',
               quote: history.quote || '',
               price: history.price || 0,
-              // Nhóm 4 bổ sung
               rentalDays: history.rentalDays ?? 0,
               paymentMethod: history.paymentMethod || '',
               customerSource: history.customerSource || '',
-              // Nhóm 5 bổ sung
               seller: history.seller || ''
             });
-            setEditingId(selectedCustomerForModal.id);
-            setEditingHistoryId(history.id);
-            setIsAddingPurchaseHistory(false);
-            setSelectedCustomerForModal(null);
+
+            // 3. Đặt các trạng thái kiểm soát chế độ Edit Giao dịch
+            setEditingId(customerId);
+            setEditingHistoryId(history.id);       // Kích hoạt trạng thái sửa History cụ thể
+            setIsAddingPurchaseHistory(false);     // Chuyển sang false để hàm handleSaveData chạy vào nhánh Update thay vì Create
+            setSelectedCustomerForModal(null);     // Đóng modal lịch sử
             setFormError('');
+
+            // Cuộn mượt lên đầu trang để người dùng nhìn thấy Form đang hiển thị dữ liệu cũ
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
         />
