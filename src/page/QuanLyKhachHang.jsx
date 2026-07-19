@@ -41,6 +41,9 @@ export default function CRMSystem() {
   const [selectedCustomerForModal, setSelectedCustomerForModal] = useState(null);
   // State lưu trữ tổng số tiền đã mua theo customerId
   const [totalSpentMap, setTotalSpentMap] = useState({});
+  // Danh sách khách hàng dùng riêng cho dropdown "Khách hàng giới thiệu"
+  // (độc lập với danh sách customers đang phân trang/lọc trên bảng)
+  const [referralOptionsList, setReferralOptionsList] = useState([]);
 
   // --- TRẠNG THÁI FORM ---
   const [editingId, setEditingId] = useState(null);
@@ -153,6 +156,31 @@ export default function CRMSystem() {
   useEffect(() => {
     fetchCustomers();
   }, [currentPage, pageSize, crmSearch, crmSearchById, crmFilterLabel, crmFilterEco]);
+
+  // 2b. API: Lấy TOÀN BỘ khách hàng (không phân trang) để làm nguồn dữ liệu cho
+  // dropdown "Khách hàng giới thiệu". Nếu chỉ dùng lại state `customers` (đã bị
+  // phân trang/lọc) thì khách hàng giới thiệu thực tế thường không có mặt trong
+  // trang đang xem, khiến SearchableSelect không map được label cho value đã chọn.
+  const fetchReferralOptions = async () => {
+    try {
+      const response = await ApiCustomer.getCustomers({ page: 1, pageSize: 100000 });
+      const result = response?.DT || response;
+      let list = [];
+      if (result && typeof result === 'object') {
+        if (Array.isArray(result.rows)) list = result.rows;
+        else if (Array.isArray(result.items)) list = result.items;
+        else if (Array.isArray(result.customers)) list = result.customers;
+        else if (Array.isArray(result)) list = result;
+      }
+      setReferralOptionsList(list);
+    } catch (err) {
+      console.error("Lỗi tải danh sách khách hàng giới thiệu:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchReferralOptions();
+  }, []);
 
   // API: Gọi tổng số tiền đã mua của từng khách hàng khi danh sách thay đổi
   useEffect(() => {
@@ -421,6 +449,7 @@ export default function CRMSystem() {
       }
 
       await fetchCustomers();
+      await fetchReferralOptions();
 
       if (selectedCustomerForModal?.id === editingId) {
         const updatedCustomer = await fetchCustomerById(editingId);
@@ -455,16 +484,6 @@ export default function CRMSystem() {
         }
       }
     });
-  };
-
-  // --- ĐỔI NHÃN TRẠNG THÁI TRỰC TIẾP TRÊN BẢNG ---
-  const handleLabelChange = async (customerId, nextLabel) => {
-    try {
-      await ApiCustomer.updateCustomer(customerId, { label: nextLabel });
-      setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, label: nextLabel } : c));
-    } catch (err) {
-      console.error("Lỗi thay đổi trạng thái nhanh:", err);
-    }
   };
 
   const handleAddTransactionFromModal = (customer) => {
@@ -508,7 +527,7 @@ export default function CRMSystem() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleEditClick = (customer) => {
+  const handleEditClick = async (customer) => {
     setFormData({
       ...customer,
       referralCustomerId: customer.referralCustomerId ?? '',
@@ -519,6 +538,22 @@ export default function CRMSystem() {
     setEditingHistoryId(null);
     setIsAddingPurchaseHistory(false);
     setFormError('');
+
+    // Bảo hiểm: nếu khách hàng giới thiệu chưa có trong referralOptionsList
+    // (vd. mới tạo, hoặc danh sách bị giới hạn), fetch riêng và bổ sung vào,
+    // để SearchableSelect map đúng label thay vì hiển thị trống.
+    if (customer.referralCustomerId) {
+      const alreadyInList = referralOptionsList.some(
+        c => String(c.id) === String(customer.referralCustomerId)
+      );
+      if (!alreadyInList) {
+        const referrer = await fetchCustomerById(customer.referralCustomerId);
+        if (referrer) {
+          setReferralOptionsList(prev => [...prev, referrer]);
+        }
+      }
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -532,7 +567,7 @@ export default function CRMSystem() {
     label: s.fullName || s.username
   }));
 
-  const referralCustomerOptions = (customers || []).filter((customer) => String(customer.id) !== String(editingId));
+  const referralCustomerOptions = (referralOptionsList || []).filter((customer) => String(customer.id) !== String(editingId));
 
   if (!user || user.role !== 'Admin') {
     return (
@@ -599,15 +634,15 @@ export default function CRMSystem() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Họ và tên *</label>
-                      <input disabled={isAddingPurchaseHistory} type="text" placeholder="Nhập tên khách hàng" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500 font-semibold" value={formData.fullName || ''} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
+                      <input disabled={isAddingPurchaseHistory || !!editingHistoryId} type="text" placeholder="Nhập tên khách hàng" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500 font-semibold" value={formData.fullName || ''} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh *</label>
-                      <input disabled={isAddingPurchaseHistory} type="text" placeholder="dd/MM/yyyy" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.birthday || ''} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
+                      <input disabled={isAddingPurchaseHistory || !!editingHistoryId} type="text" placeholder="dd/MM/yyyy" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.birthday || ''} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Địa chỉ chính xác</label>
-                      <input disabled={isAddingPurchaseHistory} type="text" placeholder="Nhập địa chỉ cư trú" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
+                      <input disabled={isAddingPurchaseHistory || !!editingHistoryId} type="text" placeholder="Nhập địa chỉ cư trú" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
                     </div>
                   </div>
                 </div>
@@ -618,15 +653,15 @@ export default function CRMSystem() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số điện thoại *</label>
-                      <input disabled={isAddingPurchaseHistory} type="text" placeholder="Số điện thoại liên lạc" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500 font-semibold" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                      <input disabled={isAddingPurchaseHistory || !!editingHistoryId} type="text" placeholder="Số điện thoại liên lạc" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500 font-semibold" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Thư điện tử (Email)</label>
-                      <input disabled={isAddingPurchaseHistory} type="email" placeholder="Địa chỉ Email" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                      <input disabled={isAddingPurchaseHistory || !!editingHistoryId} type="email" placeholder="Địa chỉ Email" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn Facebook</label>
-                      <input disabled={isAddingPurchaseHistory} type="text" placeholder="Link Facebook" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.facebook || ''} onChange={e => setFormData({ ...formData, facebook: e.target.value })} />
+                      <input disabled={isAddingPurchaseHistory || !!editingHistoryId} type="text" placeholder="Link Facebook" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.facebook || ''} onChange={e => setFormData({ ...formData, facebook: e.target.value })} />
                     </div>
                     <div className="md:col-span-3">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hệ sinh thái</label>
@@ -641,179 +676,182 @@ export default function CRMSystem() {
                     </div>
                   </div>
                 </div>
-
-                {/* Nhóm 3: Chi tiết đơn hàng */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Nhóm 3: Chi tiết đơn hàng mới / chỉnh sửa</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tổng số lần đã mua hàng</label>
-                        <input type="number" min="0" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs disabled:bg-slate-100 font-bold text-indigo-600" value={formData.purchaseCount || 0} disabled />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
-                        {/* Đã chuyển đổi triệt để sang type="date" và bọc phòng vệ || '' lỗi controlled component */}
-                        <input
-                          type="date"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          value={formData.singleDate || ''}
-                          onChange={e => setFormData({ ...formData, singleDate: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col justify-end">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm dịch vụ</label>
-                          <input type="text" placeholder="Tên sản phẩm dịch vụ" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800" value={formData.products || ''} onChange={e => setFormData({ ...formData, products: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hóa đơn đầu ra</label>
-                          <input type="text" placeholder="Nhập đường dẫn URL hóa đơn..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.invoiceLink || ''} onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hạng mục</label>
-                      <input type="text" placeholder="Nhập hạng mục" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.category || ''} onChange={e => setFormData({ ...formData, category: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phân loại</label>
-                      <SearchableSelect
-                        options={ITEM_TYPE_OPTIONS}
-                        value={formData.itemType || ''}
-                        placeholder="-- Chọn phân loại --"
-                        onChange={(value) => setFormData({ ...formData, itemType: value })}
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
-                      <input type="text" placeholder="Nhập báo giá" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.quote || ''} onChange={e => setFormData({ ...formData, quote: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá chốt</label>
-                      <input type="text" inputMode="numeric" placeholder="Nhập giá" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Nhóm 4: Chăm sóc & Tiếp thị */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 4: Chăm sóc &amp; Tiếp thị</h4>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số ngày thuê</label>
-                        <input type="number" min="0" placeholder="0" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.rentalDays ?? 0} onChange={e => setFormData({ ...formData, rentalDays: e.target.value === '' ? 0 : Number(e.target.value) })} />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức thanh toán</label>
-                        <SearchableSelect
-                          options={PAYMENT_METHOD_OPTIONS}
-                          value={formData.paymentMethod || ''}
-                          placeholder="-- Chọn phương thức --"
-                          onChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nguồn khách hàng</label>
-                        <SearchableSelect
-                          options={CUSTOMER_SOURCE_OPTIONS}
-                          value={formData.customerSource || ''}
-                          placeholder="-- Chọn nguồn --"
-                          onChange={(value) => setFormData({ ...formData, customerSource: value })}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khách hàng giới thiệu</label>
-                        <SearchableSelect
-                          options={referralCustomerOptions.map(customer => ({
-                            value: customer.id,
-                            label: `${customer.fullName} -- ID: ${customer.id}`
-                          }))}
-                          value={formData.referralCustomerId ?? ''}
-                          placeholder="-- Chọn khách hàng giới thiệu --"
-                          onChange={(value) => setFormData({ ...formData, referralCustomerId: value })}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mối quan tâm / Vấn đề</label>
-                      <ExpandableInput value={formData.issue || ''} onChange={(newValue) => setFormData({ ...formData, issue: newValue })} placeholder="Nhu cầu khách hàng..." />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khuyến mãi áp dụng</label>
-                      <div className="flex gap-1.5">
-                        <input type="text" className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs" placeholder="Nhập tên khuyến mãi rồi ấn Enter..." value={promoEvent || ''} onChange={e => setPromoEvent(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (promoEvent.trim()) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent.trim() }] }); setPromoEvent(''); } }} />
-                        <button type="button" onClick={() => { if (promoEvent.trim()) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent.trim() }] }); setPromoEvent(''); }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl border border-indigo-200">Thêm</button>
-                      </div>
-                      <div className="mt-1.5 space-y-1">
-                        {(formData.promotions || []).map((p, i) => (
-                          <div key={i} className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200">
-                            <span>Sự kiện: <strong className="text-indigo-600">{p.event || ''}</strong></span>
-                            <span className="text-rose-500 font-bold cursor-pointer" onClick={() => setFormData({ ...formData, promotions: formData.promotions.filter((_, idx) => idx !== i) })}>Gỡ</span>
+                {(!editingId || isAddingPurchaseHistory || editingHistoryId) && (
+                  <>
+                    {/* Nhóm 3: Chi tiết đơn hàng */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                      <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Nhóm 3: Chi tiết đơn hàng mới / chỉnh sửa</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tổng số lần đã mua hàng</label>
+                            <input type="number" min="0" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs disabled:bg-slate-100 font-bold text-indigo-600" value={formData.purchaseCount || 0} disabled />
                           </div>
-                        ))}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
+                            {/* Đã chuyển đổi triệt để sang type="date" và bọc phòng vệ || '' lỗi controlled component */}
+                            <input
+                              type="date"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              value={formData.singleDate || ''}
+                              onChange={e => setFormData({ ...formData, singleDate: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-col justify-end">
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên sản phẩm dịch vụ</label>
+                              <input type="text" placeholder="Tên sản phẩm dịch vụ" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800" value={formData.products || ''} onChange={e => setFormData({ ...formData, products: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hóa đơn đầu ra</label>
+                              <input type="text" placeholder="Nhập đường dẫn URL hóa đơn..." className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.invoiceLink || ''} onChange={e => setFormData({ ...formData, invoiceLink: e.target.value })} />
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức chăm sóc (Chọn nhiều)</label>
-                      <div className="flex flex-wrap gap-4 bg-white p-3 rounded-xl border border-slate-200">
-                        {CARE_METHODS.map(m => (
-                          <label key={m.value} className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                            <input type="checkbox" checked={(formData.careMethods || []).includes(m.value)} onChange={e => setFormData({ ...formData, careMethods: e.target.checked ? [...(formData.careMethods || []), m.value] : formData.careMethods.filter(c => c !== m.value) })} className="rounded text-indigo-600 focus:ring-indigo-500" />
-                            {m.label}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Nhóm 5: Nhân sự phụ trách */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 5: Phân sự nội bộ</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Người bán</label>
-                      <SearchableSelect
-                        options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
-                        value={formData.seller || ''}
-                        placeholder="-- Chọn người bán --"
-                        onChange={(value) => setFormData({ ...formData, seller: value })}
-                        className="w-full"
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hạng mục</label>
+                          <input type="text" placeholder="Nhập hạng mục" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.category || ''} onChange={e => setFormData({ ...formData, category: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phân loại</label>
+                          <SearchableSelect
+                            options={ITEM_TYPE_OPTIONS}
+                            value={formData.itemType || ''}
+                            placeholder="-- Chọn phân loại --"
+                            onChange={(value) => setFormData({ ...formData, itemType: value })}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
+                          <input type="text" placeholder="Nhập báo giá" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.quote || ''} onChange={e => setFormData({ ...formData, quote: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá chốt</label>
+                          <input type="text" inputMode="numeric" placeholder="Nhập giá" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên tư vấn</label>
-                      <SearchableSelect
-                        options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
-                        value={formData.consultant || ''}
-                        placeholder="-- Chọn nhân sự tư vấn --"
-                        onChange={(value) => setFormData({ ...formData, consultant: value })}
-                        className="w-full"
-                      />
+
+                    {/* Nhóm 4: Chăm sóc & Tiếp thị */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 4: Chăm sóc &amp; Tiếp thị</h4>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số ngày thuê</label>
+                            <input type="number" min="0" placeholder="0" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" value={formData.rentalDays ?? 0} onChange={e => setFormData({ ...formData, rentalDays: e.target.value === '' ? 0 : Number(e.target.value) })} />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức thanh toán</label>
+                            <SearchableSelect
+                              options={PAYMENT_METHOD_OPTIONS}
+                              value={formData.paymentMethod || ''}
+                              placeholder="-- Chọn phương thức --"
+                              onChange={(value) => setFormData({ ...formData, paymentMethod: value })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nguồn khách hàng</label>
+                            <SearchableSelect
+                              options={CUSTOMER_SOURCE_OPTIONS}
+                              value={formData.customerSource || ''}
+                              placeholder="-- Chọn nguồn --"
+                              onChange={(value) => setFormData({ ...formData, customerSource: value })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khách hàng giới thiệu</label>
+                            <SearchableSelect
+                              options={referralCustomerOptions.map(customer => ({
+                                value: customer.id,
+                                label: `${customer.fullName} -- ID: ${customer.id}`
+                              }))}
+                              value={formData.referralCustomerId ?? ''}
+                              placeholder="-- Chọn khách hàng giới thiệu --"
+                              onChange={(value) => setFormData({ ...formData, referralCustomerId: value })}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mối quan tâm / Vấn đề</label>
+                          <ExpandableInput value={formData.issue || ''} onChange={(newValue) => setFormData({ ...formData, issue: newValue })} placeholder="Nhu cầu khách hàng..." />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Khuyến mãi áp dụng</label>
+                          <div className="flex gap-1.5">
+                            <input type="text" className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs" placeholder="Nhập tên khuyến mãi rồi ấn Enter..." value={promoEvent || ''} onChange={e => setPromoEvent(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (promoEvent.trim()) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent.trim() }] }); setPromoEvent(''); } }} />
+                            <button type="button" onClick={() => { if (promoEvent.trim()) setFormData({ ...formData, promotions: [...(formData.promotions || []), { event: promoEvent.trim() }] }); setPromoEvent(''); }} className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl border border-indigo-200">Thêm</button>
+                          </div>
+                          <div className="mt-1.5 space-y-1">
+                            {(formData.promotions || []).map((p, i) => (
+                              <div key={i} className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200">
+                                <span>Sự kiện: <strong className="text-indigo-600">{p.event || ''}</strong></span>
+                                <span className="text-rose-500 font-bold cursor-pointer" onClick={() => setFormData({ ...formData, promotions: formData.promotions.filter((_, idx) => idx !== i) })}>Gỡ</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phương thức chăm sóc (Chọn nhiều)</label>
+                          <div className="flex flex-wrap gap-4 bg-white p-3 rounded-xl border border-slate-200">
+                            {CARE_METHODS.map(m => (
+                              <label key={m.value} className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                                <input type="checkbox" checked={(formData.careMethods || []).includes(m.value)} onChange={e => setFormData({ ...formData, careMethods: e.target.checked ? [...(formData.careMethods || []), m.value] : formData.careMethods.filter(c => c !== m.value) })} className="rounded text-indigo-600 focus:ring-indigo-500" />
+                                {m.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên chăm sóc</label>
-                      <SearchableSelect
-                        options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
-                        value={formData.careStaff || ''}
-                        placeholder="-- Chọn nhân sự chăm sóc --"
-                        onChange={(value) => setFormData({ ...formData, careStaff: value })}
-                        className="w-full"
-                      />
+
+                    {/* Nhóm 5: Nhân sự phụ trách */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 5: Phân sự nội bộ</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Người bán</label>
+                          <SearchableSelect
+                            options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
+                            value={formData.seller || ''}
+                            placeholder="-- Chọn người bán --"
+                            onChange={(value) => setFormData({ ...formData, seller: value })}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên tư vấn</label>
+                          <SearchableSelect
+                            options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
+                            value={formData.consultant || ''}
+                            placeholder="-- Chọn nhân sự tư vấn --"
+                            onChange={(value) => setFormData({ ...formData, consultant: value })}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nhân viên chăm sóc</label>
+                          <SearchableSelect
+                            options={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
+                            value={formData.careStaff || ''}
+                            placeholder="-- Chọn nhân sự chăm sóc --"
+                            onChange={(value) => setFormData({ ...formData, careStaff: value })}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
 
                 {/* Nhóm 6: Trạng thái nhãn gán */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
@@ -912,14 +950,17 @@ export default function CRMSystem() {
                       <td className="px-3 py-3 space-y-1">
                         <span className="font-bold text-indigo-600">lần {cust.purchaseCount}</span>
                       </td>
-                      <td className="px-4 py-4 text-center">
-                        <SearchableSelect
-                          options={LABELS.map(l => ({ value: l.value, label: l.label }))}
-                          value={cust.label || ''}
-                          placeholder="Chọn nhãn"
-                          onChange={(value) => handleLabelChange(cust.id, value)}
-                          className={`w-full ${LABELS.find(l => l.value === cust.label)?.color || 'bg-white text-slate-800'}`}
-                        />
+                      <td className="px-4 py-4 text-center whitespace-nowrap">
+                        {(() => {
+                          // Tìm cấu hình màu sắc và text hiển thị của nhãn hiện tại
+                          const currentLabel = LABELS.find(l => l.value === cust.label);
+                          return (
+                            <span className={`inline-block w-full text-center py-1.5 rounded-xl font-bold text-xs border ${currentLabel?.color || 'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}>
+                              {currentLabel?.label || 'Chưa phân cấp'}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-4 text-center font-bold text-emerald-600 text-sm">
                         {totalSpentMap[cust.id] !== undefined ? (
@@ -963,7 +1004,7 @@ export default function CRMSystem() {
           getPurchaseHistoriesFn={() => detailCustomerPurchaseHistory}
           onAddTransaction={handleAddTransactionFromModal}
           onDeleteTransaction={(historyId) => handleDeleteHistory(selectedCustomerForModal.id, historyId)}
-          onEditTransaction={(history) => {
+          onEditTransaction={async (history) => {
             // 1. Lưu lại ID của khách hàng trước khi đóng modal
             const customerId = selectedCustomerForModal?.id;
 
@@ -985,7 +1026,9 @@ export default function CRMSystem() {
               ecosystem: selectedCustomerForModal.ecosystem || '',
               label: selectedCustomerForModal.label || '',
               purchaseCount: selectedCustomerForModal.purchaseCount ?? 0,
-              referralCustomerId: selectedCustomerForModal.referralCustomerId ?? '',
+              // Lấy referralCustomerId từ CHÍNH giao dịch đang sửa (nếu có),
+              // nếu giao dịch không có thì mới rơi về referralCustomerId của khách hàng
+              referralCustomerId: history.referralCustomerId ?? selectedCustomerForModal.referralCustomerId ?? '',
 
               // Điền chính xác thông tin từ Lịch sử giao dịch (history) vào form
               singleDate: toISODate(history.date) || getTodayISODate(),
@@ -1012,6 +1055,21 @@ export default function CRMSystem() {
             setIsAddingPurchaseHistory(false);     // Chuyển sang false để hàm handleSaveData chạy vào nhánh Update thay vì Create
             setSelectedCustomerForModal(null);     // Đóng modal lịch sử
             setFormError('');
+
+            // Bảo hiểm: đảm bảo khách hàng giới thiệu của giao dịch này cũng có mặt
+            // trong referralOptionsList để SearchableSelect map đúng label
+            const referralId = history.referralCustomerId ?? selectedCustomerForModal?.referralCustomerId;
+            if (referralId) {
+              const alreadyInList = referralOptionsList.some(
+                c => String(c.id) === String(referralId)
+              );
+              if (!alreadyInList) {
+                const referrer = await fetchCustomerById(referralId);
+                if (referrer) {
+                  setReferralOptionsList(prev => [...prev, referrer]);
+                }
+              }
+            }
 
             // Cuộn mượt lên đầu trang để người dùng nhìn thấy Form đang hiển thị dữ liệu cũ
             window.scrollTo({ top: 0, behavior: 'smooth' });
