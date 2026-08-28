@@ -638,7 +638,7 @@ export default function CRMSystem() {
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh *</label>
-                      <input disabled={isAddingPurchaseHistory || !!editingHistoryId} type="text" placeholder="dd/MM/yyyy" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.birthday || ''} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
+                      <input disabled={isAddingPurchaseHistory || !!editingHistoryId} type="text" placeholder="yyyy-MM-dd" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.birthday || ''} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Địa chỉ chính xác</label>
