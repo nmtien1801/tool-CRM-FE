@@ -6,8 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDev = !app.isPackaged;
 
-// ĐỊA CHỈ IP VPS BACKEND CRM CỦA BẠN
-const VPS_URL = "http://103.221.220.15:5000";
+// Bỏ qua cảnh báo chứng chỉ tự ký cho HTTPS IP
+app.commandLine.appendSwitch('ignore-certificate-errors');
 
 // LÁCH BẢO MẬT MẠNG NỘI BỘ (Cho phép Electron gọi HTTP lên IP VPS không có SSL)
 app.commandLine.appendSwitch(
@@ -21,7 +21,7 @@ let mainWindow;
 // AUTOMATION: TỰ ĐỘNG GỌI LÊN VPS QUÉT SINH NHẬT KHI VỪA BẬT TOOL
 // async function checkBirthdaysFromVPS() {
 //   try {
-//     const response = await net.fetch(`${VPS_URL}/api/customers/birthdays-today`, { method: "GET" });
+//     const response = await net.fetch(`${import.meta.env.VITE_BACKEND_URL}/api/customers/birthdays-today`, { method: "GET" });
 //     if (response.ok) {
 //       const listBirthdays = await response.json();
 //       if (listBirthdays && listBirthdays.length > 0 && mainWindow && !mainWindow.isDestroyed()) {
