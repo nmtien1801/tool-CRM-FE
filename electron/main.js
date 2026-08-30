@@ -18,22 +18,6 @@ app.commandLine.appendSwitch("disable-web-security");
 
 let mainWindow;
 
-// AUTOMATION: TỰ ĐỘNG GỌI LÊN VPS QUÉT SINH NHẬT KHI VỪA BẬT TOOL
-// async function checkBirthdaysFromVPS() {
-//   try {
-//     const response = await net.fetch(`${import.meta.env.VITE_BACKEND_URL}/api/customers/birthdays-today`, { method: "GET" });
-//     if (response.ok) {
-//       const listBirthdays = await response.json();
-//       if (listBirthdays && listBirthdays.length > 0 && mainWindow && !mainWindow.isDestroyed()) {
-//         // Bắn dữ liệu về giao diện React hiển thị cảnh báo
-//         mainWindow.webContents.send("notify:birthday-today", listBirthdays);
-//       }
-//     }
-//   } catch (err) {
-//     console.error("Không thể kết nối đến VPS để quét sinh nhật:", err.message);
-//   }
-// }
-
 const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1240,
@@ -53,12 +37,8 @@ const createWindow = () => {
     : `file://${path.join(__dirname, "../dist/index.html")}`;
 
   mainWindow.loadURL(startUrl);
-  if (isDev) mainWindow.webContents.openDevTools();
-
-  // Khi giao diện load xong -> Trigger quét sinh nhật từ VPS lập tức
-  // mainWindow.webContents.on("did-finish-load", () => {
-  //   checkBirthdaysFromVPS();
-  // });
+  // if (isDev) mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 
   // THANH MENU ĐIỀU HƯỚNG HỆ THỐNG
   const menuTemplate = [
