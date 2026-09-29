@@ -22,7 +22,11 @@ const createWindow = () => {
     },
   });
 
-  const startUrl = isDev ? "http://localhost:5173" : "https://cmicagency.shop";
+  if (isDev) {
+    mainWindow.loadURL("http://localhost:5173");
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+  }
 
   mainWindow.loadURL(startUrl);
   // if (isDev) mainWindow.webContents.openDevTools();
