@@ -28,7 +28,6 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  mainWindow.loadURL(startUrl);
   // if (isDev) mainWindow.webContents.openDevTools();
   mainWindow.webContents.openDevTools();
 
