@@ -1,7 +1,8 @@
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_BACKEND_URL;
-const API_SECRET_KEY = import.meta.env.VITE_API_SECRET_KEY;
+const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL || "https://api.cmicagency.shop/api";
+const API_SECRET_KEY = import.meta.env.VITE_API_SECRET_KEY || "NguyenMinhTien";
 
 const api = axios.create({
   baseURL: BASE_URL,
