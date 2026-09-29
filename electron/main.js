@@ -6,16 +6,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDev = !app.isPackaged;
 
-// Bỏ qua cảnh báo chứng chỉ tự ký cho HTTPS IP
-app.commandLine.appendSwitch('ignore-certificate-errors');
-
-// LÁCH BẢO MẬT MẠNG NỘI BỘ (Cho phép Electron gọi HTTP lên IP VPS không có SSL)
-app.commandLine.appendSwitch(
-  "disable-features",
-  "BlockInsecurePrivateNetworkRequests",
-);
-app.commandLine.appendSwitch("disable-web-security");
-
 let mainWindow;
 
 const createWindow = () => {
@@ -32,9 +22,7 @@ const createWindow = () => {
     },
   });
 
-  const startUrl = isDev
-    ? "http://localhost:5173"
-    : `file://${path.join(__dirname, "../dist/index.html")}`;
+  const startUrl = isDev ? "http://localhost:5173" : "https://cmicagency.shop";
 
   mainWindow.loadURL(startUrl);
   // if (isDev) mainWindow.webContents.openDevTools();
@@ -53,7 +41,6 @@ const createWindow = () => {
           label: "Thông báo",
           click: () => mainWindow.webContents.send("navigate", "/Notification"),
         },
-        ,
         { label: "Thoát", role: "quit" },
       ],
     },
