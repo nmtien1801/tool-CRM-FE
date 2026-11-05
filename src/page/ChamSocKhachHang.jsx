@@ -7,7 +7,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import ApiCustomer from '../api/ApiCustomer';
 import ApiAuth from '../api/ApiAuth';
 import ApiPurchaseHistory from '../api/ApiPurchaseHistory';
-import { LABELS } from './CRM';
+import { LABELS, ECOSYSTEM_OPTIONS } from './CRM';
 import { getBirthdayCustomers } from './ThongBao';
 
 export default function ChamSocKhachHangPage() {
@@ -21,8 +21,9 @@ export default function ChamSocKhachHangPage() {
     const [filterLabel, setFilterLabel] = useState('');
     const [filterCareStatus, setFilterCareStatus] = useState('all');
     const [filterStaff, setFilterStaff] = useState('');
+    const [filterEcosystem, setFilterEcosystem] = useState('');
 
-    // ─── STATE PHÂN TRANG (ĐỒNG BỘ THEO RESPONSE BE) ───
+    // ─── STATE PHÂN TRANG (MẶC ĐỊNH LÀ 5) ───
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(5);
     const [totalItems, setTotalItems] = useState(0);
@@ -58,6 +59,7 @@ export default function ChamSocKhachHangPage() {
             const params = {
                 search: searchTerm,
                 label: filterLabel,
+                ecosystem: filterEcosystem,
                 page: currentPage,
                 pageSize: pageSize
             };
@@ -147,7 +149,7 @@ export default function ChamSocKhachHangPage() {
     useEffect(() => {
         fetchCustomers();
         fetchStaff();
-    }, [currentPage, pageSize, searchTerm, filterLabel]);
+    }, [currentPage, pageSize, searchTerm, filterLabel, filterEcosystem]);
 
     const handleInputChange = (historyId, field, value) => {
         setCareStates(prev => ({
@@ -164,7 +166,6 @@ export default function ChamSocKhachHangPage() {
             return;
         }
 
-        // Gom đầy đủ payload gửi lên Backend bao gồm cả issue, behaviorMetric và isCared
         const payload = {
             issue: rowData.issue ?? row?.issue ?? '',
             careStaff: rowData.careStaff ?? row?.careStaff ?? '',
@@ -181,7 +182,6 @@ export default function ChamSocKhachHangPage() {
         try {
             await ApiPurchaseHistory.updatePurchaseHistory(historyId, payload);
 
-            // Cập nhật lại Map để giao diện hiển thị đồng bộ tức thì không cần F5
             setPurchaseHistoryMap(prev => ({
                 ...prev,
                 [customerId]: (prev[customerId] || []).map(hist =>
@@ -197,7 +197,6 @@ export default function ChamSocKhachHangPage() {
                 )
             }));
 
-            // Xóa state tạm thời của dòng vừa lưu để disabled nút Lưu
             setCareStates(prev => {
                 const updated = { ...prev };
                 delete updated[historyId];
@@ -225,7 +224,6 @@ export default function ChamSocKhachHangPage() {
                     careStaff: history.careStaff || '',
                     issue: history.issue || '',
                     behaviorMetric: history.behaviorMetric || '',
-                    // SỬA LỖI: Ưu tiên nhận isCared từ Backend trả về trước, tránh tự ép kiểu sai
                     isCared: history.isCared ?? Boolean(history.issue || history.careStaff || history.careMethods?.length)
                 });
             });
@@ -255,6 +253,14 @@ export default function ChamSocKhachHangPage() {
         return matchesCareStatus && matchesStaff;
     });
 
+    // Chuẩn hóa danh sách options hệ sinh thái để tương thích dù ECOSYSTEM_OPTIONS là mảng chuỗi hay mảng object
+    const ecosystemOptions = (ECOSYSTEM_OPTIONS || []).map(item => {
+        if (typeof item === 'string') {
+            return { value: item, label: item };
+        }
+        return { value: item.value ?? item.name, label: item.label ?? item.name ?? item.value };
+    });
+
     return (
         <div className="w-full bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 space-y-6">
 
@@ -269,7 +275,6 @@ export default function ChamSocKhachHangPage() {
                     </p>
                 </div>
 
-                {/* Bell button */}
                 <button
                     onClick={() => navigate('/Notification')}
                     title={
@@ -290,6 +295,7 @@ export default function ChamSocKhachHangPage() {
 
             {/* Bộ lọc Tìm kiếm nâng cao */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-150">
+                {/* 1. Tìm kiếm thông tin */}
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Tìm kiếm thông tin</label>
                     <div className="relative">
@@ -303,6 +309,8 @@ export default function ChamSocKhachHangPage() {
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     </div>
                 </div>
+
+                {/* 2. Giai đoạn khách hàng */}
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Giai đoạn khách hàng</label>
                     <SearchableSelect
@@ -313,6 +321,8 @@ export default function ChamSocKhachHangPage() {
                         className="w-full"
                     />
                 </div>
+
+                {/* 3. Nhân viên CSKH */}
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Nhân viên CSKH</label>
                     <SearchableSelect
@@ -323,6 +333,8 @@ export default function ChamSocKhachHangPage() {
                         className="w-full"
                     />
                 </div>
+
+                {/* 4. Trạng thái chăm sóc */}
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Trạng thái chăm sóc</label>
                     <SearchableSelect
@@ -337,13 +349,18 @@ export default function ChamSocKhachHangPage() {
                         className="w-full"
                     />
                 </div>
+
+                {/* 5. Lọc Hệ sinh thái (Đã thay thế cho phần Hiển thị) */}
                 <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">Hiển thị</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Hệ sinh thái</label>
                     <SearchableSelect
-                        options={[5, 10, 20, 50].map(size => ({ value: size, label: `${size} khách hàng/trang` }))}
-                        value={pageSize}
-                        placeholder="Chọn số dòng"
-                        onChange={(value) => { setPageSize(Number(value)); setCurrentPage(1); }}
+                        options={[
+                            { value: '', label: 'Tất cả hệ sinh thái' },
+                            ...ecosystemOptions
+                        ]}
+                        value={filterEcosystem}
+                        placeholder="Tất cả hệ sinh thái"
+                        onChange={(value) => { setFilterEcosystem(value); setCurrentPage(1); }}
                         className="w-full"
                     />
                 </div>
@@ -394,8 +411,6 @@ export default function ChamSocKhachHangPage() {
 
                                     const currentState = careStates[row.historyId] || {};
                                     const isChecked = currentState.isCared ?? row.isCared;
-
-                                    // SỬA ĐỒNG BỘ: Sử dụng trực tiếp trường issue cho cả state và dữ liệu gốc
                                     const careContent = currentState.issue ?? row.issue ?? '';
                                     const behaviorMetric = currentState.behaviorMetric ?? row.behaviorMetric ?? '';
 
@@ -465,7 +480,6 @@ export default function ChamSocKhachHangPage() {
                                             <td className="px-4 py-4">
                                                 <ExpandableInput
                                                     value={careContent}
-                                                    // SỬA ĐỒNG BỘ: Dùng 'issue' thay vì 'careContent'
                                                     onChange={(newValue) => handleInputChange(row.historyId, 'issue', newValue)}
                                                     placeholder="Nhập nội dung chăm sóc..."
                                                     title={`Nội dung chăm sóc - Khách hàng: ${row.fullName}`}
@@ -515,7 +529,7 @@ export default function ChamSocKhachHangPage() {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={9} className="py-12 text-center text-slate-400 italic">
+                                    <td colSpan={10} className="py-12 text-center text-slate-400 italic">
                                         Không tìm thấy kết quả phù hợp với điều kiện tìm kiếm/lọc.
                                     </td>
                                 </tr>

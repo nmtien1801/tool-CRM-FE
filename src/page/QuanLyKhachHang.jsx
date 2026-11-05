@@ -666,7 +666,7 @@ export default function CRMSystem() {
                     <div className="md:col-span-3">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hệ sinh thái</label>
                       <SearchableSelect
-                        disabled={isAddingPurchaseHistory}
+                        disabled={isAddingPurchaseHistory || !!editingHistoryId}
                         options={ECOSYSTEM_OPTIONS}
                         value={formData.ecosystem || ''}
                         placeholder="-- Click để chọn hệ sinh thái --"
@@ -945,7 +945,7 @@ export default function CRMSystem() {
                         <div><span className="text-slate-500">SĐT:</span> <span className="font-bold text-slate-900">{cust.phone}</span></div>
                         <div><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-800 break-all">{cust.email || 'Chưa điền'}</span></div>
                         <div><span className="text-slate-500">Facebook:</span> {cust.facebook ? <a href={cust.facebook} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium break-all">{cust.facebook}</a> : <span className="text-slate-400 italic">Trống</span>}</div>
-                        <div className="pt-1"><span className="bg-slate-100 border text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px]">{ECOSYSTEM_OPTIONS.find(e => e.value === cust.ecosystem)?.label || 'Chưa chọn'}</span></div>
+                        <div className="pt-1"><span className="bg-slate-100 border text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px]">{ECOSYSTEM_OPTIONS.find(e => e.value === cust.ecosystem)?.label || 'Chưa chọn hệ sinh thái'}</span></div>
                       </td>
                       <td className="px-3 py-3 space-y-1">
                         <span className="font-bold text-indigo-600">lần {cust.purchaseCount}</span>

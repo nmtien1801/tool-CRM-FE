@@ -17,6 +17,14 @@ export default function SearchableSelect({
     const [query, setQuery] = useState('');
     const wrapperRef = useRef(null);
 
+    // Tự động đóng menu và reset query nếu disabled chuyển sang true
+    useEffect(() => {
+        if (disabled) {
+            setIsOpen(false);
+            setQuery('');
+        }
+    }, [disabled]);
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -47,26 +55,36 @@ export default function SearchableSelect({
     }, [options, value, optionLabel, optionValue, formatOptionLabel]);
 
     const handleSelect = (nextValue) => {
+        if (disabled) return;
         onChange?.(nextValue);
         setIsOpen(false);
         setQuery('');
     };
 
     return (
-        <div ref={wrapperRef} className={`relative ${className}`.trim()}>
-            <div className="relative">
+        <div
+            ref={wrapperRef}
+            className={`relative ${disabled ? 'cursor-not-allowed select-none' : ''} ${className}`.trim()}
+        >
+            <div className={`relative ${disabled ? 'pointer-events-none' : ''}`}>
                 <input
                     type="text"
                     disabled={disabled}
                     value={isOpen ? query : (selectedLabel || '')}
                     placeholder={placeholder}
-                    onFocus={() => setIsOpen(true)}
-                    onClick={() => setIsOpen(true)}
-                    onChange={(event) => {
-                        setQuery(event.target.value);
-                        setIsOpen(true);
+                    onFocus={() => {
+                        if (!disabled) setIsOpen(true);
                     }}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500"
+                    onClick={() => {
+                        if (!disabled) setIsOpen(true);
+                    }}
+                    onChange={(event) => {
+                        if (!disabled) {
+                            setQuery(event.target.value);
+                            setIsOpen(true);
+                        }
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed disabled:border-slate-200"
                 />
                 <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
             </div>

@@ -28,8 +28,8 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  // if (isDev) mainWindow.webContents.openDevTools();
-  mainWindow.webContents.openDevTools();
+  if (isDev) mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 
   // THANH MENU ĐIỀU HƯỚNG HỆ THỐNG
   const menuTemplate = [
@@ -37,7 +37,7 @@ const createWindow = () => {
       label: "File",
       submenu: [
         {
-          label: "Dashboard",
+          label: "Quản lý tài khoản",
           click: () => mainWindow.webContents.send("navigate", "/dashboard"),
         },
         {

@@ -25,7 +25,7 @@ function Login() {
             if (response.EC === 0 && userData) {
                 login(userData);
                 // Chuyển hướng đến dashboard sau khi đăng nhập thành công
-                navigate('/crm');
+                navigate('/csm');
             } else {
                 setError('Tài khoản hoặc mật khẩu không đúng. Vui lòng thử lại.');
             }
@@ -56,13 +56,13 @@ function Login() {
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>
                         <label className="block text-gray-700 font-medium mb-2">
-                            userName
+                            Email đăng nhập
                         </label>
                         <input
                             //   type="userName"
                             value={userName}
                             onChange={(e) => setUserName(e.target.value)}
-                            placeholder="userName"
+                            placeholder="Nhập email đăng nhập"
                             required
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />

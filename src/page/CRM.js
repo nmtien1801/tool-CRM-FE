@@ -145,6 +145,8 @@ export const EMPTY_CUSTOMER = {
   referralCustomerId: "",
   // Nhóm 5 bổ sung: người bán
   seller: "",
+  behaviorMetric: "hành vi",
+  isCared: false,
 };
 
 // Danh sách khách hàng gốc (Đã lược bỏ purchaseHistories lồng bên trong)
@@ -188,6 +190,8 @@ export const INITIAL_PURCHASE_HISTORIES = [
     referralCustomerId: "",
     // Nhóm 5 bổ sung
     seller: "NguyenVanA",
+    behaviorMetric: "hành vi",
+    isCared: false,
   },
   {
     id: "1-1",
@@ -212,5 +216,7 @@ export const INITIAL_PURCHASE_HISTORIES = [
     referralCustomerId: "",
     // Nhóm 5 bổ sung
     seller: "TranThiB",
+    behaviorMetric: "hành vi",
+    isCared: false,
   },
 ];
