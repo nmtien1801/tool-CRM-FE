@@ -23,6 +23,7 @@ function Login() {
             // Lưu user info vào context
             const userData = response.DT || {};
             if (response.EC === 0 && userData) {
+                localStorage.setItem('userInfo', JSON.stringify(userData));
                 login(userData);
                 // Chuyển hướng đến dashboard sau khi đăng nhập thành công
                 navigate('/csm');

@@ -44,6 +44,10 @@ const createWindow = () => {
           label: "Thông báo",
           click: () => mainWindow.webContents.send("navigate", "/Notification"),
         },
+        {
+          label: "Hệ sinh thái",
+          click: () => mainWindow.webContents.send("navigate", "/ecosystem"),
+        },
         { label: "Thoát", role: "quit" },
       ],
     },

@@ -8,6 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ThongBao from './page/ThongBao';
 import ChamSocKhachHang from './page/ChamSocKhachHang';
 import Dashboard from './page/Dashboard';
+import EcosystemPage from './page/ecosystem.jsx';
 
 // ─────────────────────────────────────────────
 // Component con — nằm TRONG <Router> nên dùng được useNavigate
@@ -40,6 +41,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ecosystem"
+        element={
+          <ProtectedRoute>
+            <EcosystemPage />
           </ProtectedRoute>
         }
       />
