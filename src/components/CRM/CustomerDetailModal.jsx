@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, ExternalLink, Plus, Search } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Copy } from 'lucide-react';
 
 export default function CustomerDetailModal({
   customer,
@@ -174,16 +174,19 @@ export default function CustomerDetailModal({
                         <td className="px-4 py-4 text-center whitespace-nowrap bg-indigo-50/5">
                           {history.invoiceLink ? (
                             <div className="flex justify-center items-center h-full pt-1">
-                              <a
-                                href={history.invoiceLink}
-                                target="_blank"
-                                rel="noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(history.invoiceLink);
+                                  // Có thể thay alert bằng thư viện thông báo của bạn (ví dụ: toast.success('Đã copy!'))
+                                  alert('Đã sao chép liên kết!');
+                                }}
                                 className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg font-semibold transition-all text-[11px]"
                                 title={history.invoiceLink}
                               >
-                                <ExternalLink className="w-3 h-3" />
-                                <span>Xem liên kết</span>
-                              </a>
+                                <Copy className="w-3 h-3" />
+                                <span>Copy liên kết</span>
+                              </button>
                             </div>
                           ) : (
                             <span className="text-slate-300 italic">Trống</span>
