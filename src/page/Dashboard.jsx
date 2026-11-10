@@ -18,7 +18,7 @@ export default function DashboardPage() {
   // States quản lý Form Thêm mới
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showAddPassword, setShowAddPassword] = useState(false);
-  const [newUser, setNewUser] = useState({ fullName: '', role: 'Staff', email: '', password: '' });
+  const [newUser, setNewUser] = useState({ userName: '', fullName: '', role: 'Staff', email: '', password: '' });
   const [addError, setAddError] = useState('');
 
   // States quản lý Modal Reset / Đổi mật khẩu
@@ -58,16 +58,16 @@ export default function DashboardPage() {
     e.preventDefault();
     setAddError('');
 
-    if (!newUser.fullName || !newUser.email || !newUser.password) {
-      setAddError("Vui lòng điền đầy đủ họ tên, email và mật khẩu.");
+    if (!newUser.userName || !newUser.fullName || !newUser.email || !newUser.password) {
+      setAddError("Vui lòng điền đầy đủ tên đăng nhập, họ tên, email và mật khẩu.");
       return;
     }
 
     try {
       const payload = {
-        userName: newUser.email,
-        fullName: newUser.fullName,
-        email: newUser.email,
+        userName: newUser.userName.trim(),
+        fullName: newUser.fullName.trim(),
+        email: newUser.email.trim(),
         role: newUser.role,
         password: newUser.password
       };
@@ -75,7 +75,7 @@ export default function DashboardPage() {
       const response = await ApiAuth.createUser(payload);
 
       if (response && response.EC === 0) {
-        setNewUser({ fullName: '', role: 'Staff', email: '', password: '' });
+        setNewUser({ userName: '', fullName: '', role: 'Staff', email: '', password: '' });
         setShowAddPassword(false);
         setAddError('');
         setIsAddOpen(false);
@@ -150,7 +150,6 @@ export default function DashboardPage() {
       return targetUser.role === 'Staff';
     }
 
-    // Staff không có quyền đổi cho bất kỳ ai
     return false;
   };
 
@@ -158,8 +157,9 @@ export default function DashboardPage() {
     const search = searchTerm.trim().toLowerCase();
     const name = (item.fullName || '').toLowerCase();
     const email = (item.email || '').toLowerCase();
+    const username = (item.userName || item.username || '').toLowerCase();
 
-    const matchesSearch = name.includes(search) || email.includes(search);
+    const matchesSearch = name.includes(search) || email.includes(search) || username.includes(search);
     const matchesRole = filterRole === '' || item.role === filterRole;
 
     return matchesSearch && matchesRole;
@@ -210,7 +210,7 @@ export default function DashboardPage() {
         <div className="relative flex-1">
           <input
             type="text"
-            placeholder="Tìm theo tên, email thành viên..."
+            placeholder="Tìm theo tên đăng nhập, tên, email thành viên..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
@@ -245,6 +245,7 @@ export default function DashboardPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3.5">Tên đăng nhập</th>
                 <th className="px-6 py-3.5">Họ và Tên / Email</th>
                 <th className="px-6 py-3.5">Vai trò (Role)</th>
                 <th className="px-6 py-3.5 text-center w-48">Hành động</th>
@@ -253,7 +254,7 @@ export default function DashboardPage() {
             <tbody className="divide-y divide-slate-150 text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={3} className="py-10 text-center text-slate-400 font-medium bg-slate-50/20">
+                  <td colSpan={4} className="py-10 text-center text-slate-400 font-medium bg-slate-50/20">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
                       Đang tải danh sách thành viên...
@@ -263,6 +264,13 @@ export default function DashboardPage() {
               ) : filteredUsers.length > 0 ? (
                 filteredUsers.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                    {/* Cột Tên đăng nhập mới */}
+                    <td className="px-6 py-4">
+                      <span className="font-mono font-semibold text-slate-900 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md text-xs">
+                        {item.userName || item.username || '—'}
+                      </span>
+                    </td>
+
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900 text-sm">{item.fullName}</div>
                       <div className="text-slate-400 text-[11px] mt-0.5">{item.email}</div>
@@ -295,7 +303,6 @@ export default function DashboardPage() {
                           </button>
                         )}
 
-                        {/* Nút Xóa (thường chỉ dành cho Admin) */}
                         {canResetPassword(user, item) && (
                           <button
                             type="button"
@@ -315,7 +322,7 @@ export default function DashboardPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="py-10 text-center text-slate-400 italic bg-slate-50/20">
+                  <td colSpan={4} className="py-10 text-center text-slate-400 italic bg-slate-50/20">
                     Không tìm thấy thành viên phù hợp với bộ lọc.
                   </td>
                 </tr>
@@ -328,12 +335,10 @@ export default function DashboardPage() {
       {/* POPUP 1: FORM THÊM MỚI THÀNH VIÊN */}
       {isAddOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          {/* ĐÃ SỬA: Đổi overflow-hidden thành overflow-visible */}
           <form
             onSubmit={handleAddUser}
             className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-visible flex flex-col animate-in fade-in zoom-in-95 duration-150"
           >
-            {/* ĐÃ SỬA: Thêm rounded-t-2xl cho Header */}
             <div className="px-5 py-4 border-b border-slate-150 flex items-center justify-between bg-slate-50 rounded-t-2xl">
               <h4 className="text-sm font-bold text-slate-800">Thêm thành viên mới</h4>
               <button
@@ -350,7 +355,22 @@ export default function DashboardPage() {
 
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Họ và Tên</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Tên đăng nhập *</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="Nhập username (viết liền, không dấu)..."
+                  value={newUser.userName}
+                  onChange={e => {
+                    setAddError('');
+                    setNewUser({ ...newUser, userName: e.target.value });
+                  }}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-hidden focus:border-indigo-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Họ và Tên *</label>
                 <input
                   required
                   type="text"
@@ -365,7 +385,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Địa chỉ Email</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Địa chỉ Email *</label>
                 <input
                   required
                   type="email"
@@ -380,7 +400,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Mật khẩu</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Mật khẩu *</label>
                 <div className="relative">
                   <input
                     required
@@ -424,7 +444,6 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* ĐÃ SỬA: Thêm rounded-b-2xl cho Footer */}
             <div className="px-5 py-3 border-t border-slate-150 flex justify-end gap-2 bg-slate-50 rounded-b-2xl">
               <button
                 type="button"
@@ -487,7 +506,6 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* DÒNG CHỮ ĐỎ THÔNG BÁO LỖI */}
               {resetError && (
                 <p className="text-xs text-rose-500 font-medium mt-1.5">{resetError}</p>
               )}
@@ -531,7 +549,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* DÒNG CHỮ ĐỎ THÔNG BÁO LỖI KHI XÓA THẤT BẠI */}
             {deleteError && (
               <p className="text-xs text-rose-500 font-medium">{deleteError}</p>
             )}
