@@ -274,8 +274,8 @@ export default function CRMSystem() {
   };
 
   const handleSaveData = async () => {
-    if (!formData.fullName || !formData.phone || !formData.birthday) {
-      setFormError('Vui lòng nhập tối thiểu Họ và tên, Ngày sinh, Số điện thoại!');
+    if (!formData.fullName || !formData.phone) {
+      setFormError('Vui lòng nhập tối thiểu Họ và tên và Số điện thoại!');
       return;
     }
     setFormError('');
@@ -291,9 +291,15 @@ export default function CRMSystem() {
     };
 
     const customerPayload = {
-      fullName: formData.fullName, birthday: formData.birthday, address: formData.address,
-      phone: formData.phone, email: formData.email, facebook: formData.facebook, ecosystem: formData.ecosystem,
-      label: formData.label, referralCustomerId: formData.referralCustomerId || null
+      fullName: formData.fullName,
+      birthday: formData.birthday || null, // Tránh gửi chuỗi rỗng gây lỗi kiểu date ở backend
+      address: formData.address,
+      phone: formData.phone,
+      email: formData.email,
+      facebook: formData.facebook,
+      ecosystem: formData.ecosystem,
+      label: formData.label,
+      referralCustomerId: formData.referralCustomerId || null
     };
 
     const isHistoryValid = historyPayload.date || historyPayload.products || historyPayload.invoiceLink;
@@ -463,7 +469,7 @@ export default function CRMSystem() {
                       <input disabled={isOrderMode} type="text" placeholder="Nhập tên khách hàng" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500 font-semibold" value={formData.fullName || ''} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh</label>
                       <input disabled={isOrderMode} type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" value={formData.birthday || ''} onChange={e => setFormData({ ...formData, birthday: e.target.value })} />
                     </div>
                     <div>
@@ -763,7 +769,7 @@ export default function CRMSystem() {
                       </td>
                       <td className="px-3 py-3 space-y-1">
                         <span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span>
-                        <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{toDMY(cust.birthday)}</span></div>
+                        <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{toDMY(cust.birthday) || 'Chưa cập nhật'}</span></div>
                         <div className="text-slate-600"><span className="text-slate-500">Địa chỉ:</span> <p className="inline break-words font-medium">{cust.address || 'Chưa cập nhật'}</p></div>
                       </td>
                       <td className="px-3 py-3 space-y-1">
