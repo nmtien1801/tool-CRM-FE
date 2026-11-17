@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2, Lock, UserPlus, FilePlus2, X } from 'lucide-react';
-import CustomerDetailModal from '../components/CRM/CustomerDetailModal';
+import { Loader2, Lock, UserPlus, FilePlus2, X, Edit, Trash2, Plus, Copy } from 'lucide-react';
 import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
 import ExpandableInput from '../components/ExpandableInput';
 import Pagination from '../components/Pagination';
@@ -53,8 +52,7 @@ export default function CRMSystem() {
   // --- STATE DỮ LIỆU TỪ API ---
   const [customers, setCustomers] = useState([]);
   const [staffList, setStaffList] = useState([]);
-  const [detailCustomerPurchaseHistory, setDetailCustomerPurchaseHistory] = useState([]);
-  const [selectedCustomerForModal, setSelectedCustomerForModal] = useState(null);
+  const [historyMap, setHistoryMap] = useState({});
   const [totalSpentMap, setTotalSpentMap] = useState({});
   const [referralOptionsList, setReferralOptionsList] = useState([]);
 
@@ -72,6 +70,7 @@ export default function CRMSystem() {
     itemType: '',
     quote: '',
     price: 0,
+    receivableDebt: 0,
     rentalDays: 0,
     paymentMethod: '',
     customerSource: '',
@@ -85,12 +84,17 @@ export default function CRMSystem() {
   const [crmSearchById, setCrmSearchById] = useState('');
   const [crmFilterLabel, setCrmFilterLabel] = useState('');
   const [crmFilterEco, setCrmFilterEco] = useState('');
+  const [transactionDateFrom, setTransactionDateFrom] = useState('');
+  const [transactionDateTo, setTransactionDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState('');
+  const [receivableDebtDrafts, setReceivableDebtDrafts] = useState({});
+  const [savingReceivableDebtIds, setSavingReceivableDebtIds] = useState({});
+  const [receivableDebtErrors, setReceivableDebtErrors] = useState({});
 
   // 1. Tải danh sách Staff
   const fetchStaff = async () => {
@@ -119,6 +123,8 @@ export default function CRMSystem() {
         id: crmSearchById,
         label: crmFilterLabel,
         ecosystem: crmFilterEco,
+        transactionDateFrom,
+        transactionDateTo,
         page: currentPage,
         pageSize: pageSize,
         userRole: user?.role,
@@ -166,7 +172,7 @@ export default function CRMSystem() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [currentPage, pageSize, crmSearch, crmSearchById, crmFilterLabel, crmFilterEco, hasAccess]);
+  }, [currentPage, pageSize, crmSearch, crmSearchById, crmFilterLabel, crmFilterEco, transactionDateFrom, transactionDateTo, hasAccess]);
 
   // Lấy danh sách dùng cho Referrals
   const fetchReferralOptions = async () => {
@@ -200,6 +206,7 @@ export default function CRMSystem() {
     const fetchAllTotalSpent = async () => {
       if (!customers || customers.length === 0) return;
       const spentData = {};
+      const historyData = {};
       await Promise.all(
         customers.map(async (cust) => {
           try {
@@ -208,22 +215,20 @@ export default function CRMSystem() {
           } catch (err) {
             spentData[cust.id] = 0;
           }
+          try {
+            const hRes = await ApiPurchaseHistory.getCustomerPurchaseHistory(cust.id);
+            const hResult = hRes?.DT || hRes;
+            historyData[cust.id] = Array.isArray(hResult) ? hResult : [];
+          } catch (err) {
+            historyData[cust.id] = [];
+          }
         })
       );
       setTotalSpentMap(spentData);
+      setHistoryMap(historyData);
     };
     fetchAllTotalSpent();
   }, [customers]);
-
-  const fetchCustomerPurchaseHistory = async (customerId) => {
-    try {
-      const response = await ApiPurchaseHistory.getCustomerPurchaseHistory(customerId);
-      const result = response?.DT || response;
-      setDetailCustomerPurchaseHistory(Array.isArray(result) ? result : []);
-    } catch (err) {
-      setDetailCustomerPurchaseHistory([]);
-    }
-  };
 
   const fetchCustomerById = async (id) => {
     try {
@@ -264,7 +269,7 @@ export default function CRMSystem() {
       fullName: '', birthday: '', address: '', phone: '', email: '', facebook: '',
       ecosystem: availableEcosystemOptions[0]?.value || '', singleDate: getTodayISODate(),
       purchaseCount: 0, products: '', invoiceLink: '', issue: '', promotions: [], careMethods: [],
-      consultant: '', careStaff: '', label: '', category: '', itemType: '', quote: '', price: 0,
+      consultant: '', careStaff: '', label: '', category: '', itemType: '', quote: '', price: 0, receivableDebt: 0,
       rentalDays: 0, paymentMethod: '', customerSource: '', referralCustomerId: '', seller: ''
     });
     setEditingId(null);
@@ -285,6 +290,7 @@ export default function CRMSystem() {
       issue: formData.issue, careMethods: formData.careMethods || [], promotions: formData.promotions || [],
       consultant: formData.consultant, careStaff: formData.careStaff, category: formData.category,
       itemType: formData.itemType, quote: formData.quote, price: Number(formData.price) || 0,
+      receivableDebt: Number(formData.receivableDebt) || 0,
       rentalDays: Number(formData.rentalDays) || 0, paymentMethod: formData.paymentMethod,
       customerSource: formData.customerSource, referralCustomerId: formData.referralCustomerId || null,
       seller: formData.seller
@@ -310,8 +316,10 @@ export default function CRMSystem() {
           setFormError('Vui lòng nhập thông tin đơn hàng!');
           return;
         }
+        await ApiCustomer.updateCustomer(editingId, customerPayload);
         await ApiPurchaseHistory.createPurchaseHistory(editingId, historyPayload);
       } else if (editingId && editingHistoryId) {
+        await ApiCustomer.updateCustomer(editingId, customerPayload);
         await ApiPurchaseHistory.updatePurchaseHistory(editingHistoryId, historyPayload);
       } else if (editingId) {
         await ApiCustomer.updateCustomer(editingId, customerPayload);
@@ -325,22 +333,13 @@ export default function CRMSystem() {
 
       await fetchCustomers();
       await fetchReferralOptions();
-      if (selectedCustomerForModal?.id === editingId) {
-        const updatedCustomer = await fetchCustomerById(editingId);
-        if (updatedCustomer) setSelectedCustomerForModal(updatedCustomer);
-      }
       handleClearForm();
     } catch (err) {
       setFormError('Lỗi hệ thống khi lưu trữ dữ liệu.');
     }
   };
 
-  const handleOpenModal = (customer) => {
-    setSelectedCustomerForModal(customer);
-    fetchCustomerPurchaseHistory(customer.id);
-  };
-
-  const handleAddTransactionFromModal = (customer) => {
+  const handleAddTransaction = (customer) => {
     setFormData({
       ...EMPTY_CUSTOMER,
       fullName: customer.fullName || '', birthday: toISODate(customer.birthday) || '',
@@ -348,13 +347,12 @@ export default function CRMSystem() {
       facebook: customer.facebook || '', ecosystem: customer.ecosystem || '', label: customer.label || '',
       purchaseCount: customer.purchaseCount ?? 0, referralCustomerId: customer.referralCustomerId || '',
       singleDate: getTodayISODate(), products: '', invoiceLink: '', issue: '', careMethods: [], promotions: [],
-      consultant: '', careStaff: '', category: '', itemType: '', quote: '', price: 0, rentalDays: 0,
+      consultant: '', careStaff: '', category: '', itemType: '', quote: '', price: 0, receivableDebt: 0, rentalDays: 0,
       paymentMethod: '', customerSource: '', seller: user?.fullName || ''
     });
     setEditingId(customer.id);
     setEditingHistoryId(null);
     setIsAddingPurchaseHistory(true);
-    setSelectedCustomerForModal(null);
     setFormError('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -365,7 +363,7 @@ export default function CRMSystem() {
       birthday: toISODate(customer.birthday) || '',
       referralCustomerId: customer.referralCustomerId ?? '',
       singleDate: getTodayISODate(),
-      products: '', price: 0
+      products: '', price: 0, receivableDebt: 0
     });
     setEditingId(customer.id);
     setEditingHistoryId(null);
@@ -382,15 +380,129 @@ export default function CRMSystem() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleEditTransaction = async (customer, history) => {
+    const customerId = customer?.id;
+    if (!customerId || !history?.id) {
+      setFormError('Không tìm thấy mã định danh giao dịch hoặc khách hàng.');
+      return;
+    }
+
+    setFormData({
+      ...EMPTY_CUSTOMER,
+      fullName: customer.fullName || '',
+      birthday: toISODate(customer.birthday) || '',
+      address: customer.address || '',
+      phone: customer.phone || '',
+      email: customer.email || '',
+      facebook: customer.facebook || '',
+      ecosystem: customer.ecosystem || '',
+      label: customer.label || '',
+      purchaseCount: customer.purchaseCount ?? 0,
+      referralCustomerId: history.referralCustomerId ?? customer.referralCustomerId ?? '',
+      singleDate: toISODate(history.date) || getTodayISODate(),
+      products: history.products || '',
+      invoiceLink: history.invoiceLink || '',
+      issue: history.issue || '',
+      careMethods: Array.isArray(history.careMethods) ? history.careMethods : [],
+      promotions: Array.isArray(history.promotions) ? history.promotions : [],
+      consultant: history.consultant || '',
+      careStaff: history.careStaff || '',
+      category: history.category || '',
+      itemType: history.itemType || '',
+      quote: history.quote || '',
+      price: history.price || 0,
+      receivableDebt: history.receivableDebt ?? 0,
+      rentalDays: history.rentalDays ?? 0,
+      paymentMethod: history.paymentMethod || '',
+      customerSource: history.customerSource || '',
+      seller: history.seller || ''
+    });
+
+    setEditingId(customerId);
+    setEditingHistoryId(history.id);
+    setIsAddingPurchaseHistory(false);
+    setFormError('');
+
+    const referralId = history.referralCustomerId ?? customer?.referralCustomerId;
+    if (referralId) {
+      const alreadyInList = referralOptionsList.some(c => String(c.id) === String(referralId));
+      if (!alreadyInList) {
+        const referrer = await fetchCustomerById(referralId);
+        if (referrer) setReferralOptionsList(prev => [...prev, referrer]);
+      }
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleReceivableDebtChange = (historyId, value) => {
+    setReceivableDebtDrafts(previous => ({ ...previous, [historyId]: value }));
+    setReceivableDebtErrors(previous => ({ ...previous, [historyId]: '' }));
+  };
+
+  const handleSaveReceivableDebt = async (customer, history) => {
+    const rawValue = receivableDebtDrafts[history.id] ?? String(history.receivableDebt ?? 0);
+    const receivableDebt = rawValue.trim() === '' ? 0 : Number(rawValue);
+    if (!Number.isFinite(receivableDebt) || receivableDebt < 0) {
+      setReceivableDebtErrors(previous => ({
+        ...previous,
+        [history.id]: 'Nhập số tiền hợp lệ (từ 0 trở lên).'
+      }));
+      return;
+    }
+
+    if (receivableDebt === Number(history.receivableDebt ?? 0)) {
+      setReceivableDebtDrafts(previous => {
+        const next = { ...previous };
+        delete next[history.id];
+        return next;
+      });
+      return;
+    }
+
+    setSavingReceivableDebtIds(previous => ({ ...previous, [history.id]: true }));
+    setReceivableDebtErrors(previous => ({ ...previous, [history.id]: '' }));
+    try {
+      const response = await ApiPurchaseHistory.updatePurchaseHistory(history.id, { receivableDebt });
+      if (response?.EC !== undefined && response.EC !== 0) {
+        throw new Error(response.EM || 'Không thể cập nhật công nợ phải thu.');
+      }
+
+      setHistoryMap(previous => {
+        const histories = previous[customer.id] || customer.purchaseHistories || [];
+        return {
+          ...previous,
+          [customer.id]: histories.map(item =>
+            item.id === history.id ? { ...item, receivableDebt } : item
+          )
+        };
+      });
+      setReceivableDebtDrafts(previous => {
+        const next = { ...previous };
+        delete next[history.id];
+        return next;
+      });
+    } catch (error) {
+      console.error('Lỗi cập nhật công nợ phải thu:', error);
+      setReceivableDebtErrors(previous => ({
+        ...previous,
+        [history.id]: 'Không lưu được công nợ. Vui lòng thử lại.'
+      }));
+    } finally {
+      setSavingReceivableDebtIds(previous => {
+        const next = { ...previous };
+        delete next[history.id];
+        return next;
+      });
+    }
+  };
+
   const handleDeleteHistory = (customerId, historyId) => {
     setConfirmState({
       message: 'Bạn có chắc chắn muốn xóa giao dịch này không?',
       onConfirm: async () => {
         try {
           await ApiPurchaseHistory.deletePurchaseHistory(historyId);
-          if (selectedCustomerForModal && selectedCustomerForModal.id === customerId) {
-            await fetchCustomerPurchaseHistory(customerId);
-          }
           if (editingHistoryId === historyId) handleClearForm();
           await fetchCustomers();
         } catch (err) {
@@ -399,6 +511,28 @@ export default function CRMSystem() {
       }
     });
   };
+
+  const staffOptions = staffList.map(s => ({ value: s.fullName, label: s.fullName }));
+
+  // Mỗi giao dịch là 1 dòng riêng (khách chưa có giao dịch vẫn có 1 dòng)
+  const flatRows = [];
+  const hasTransactionDateFilter = Boolean(transactionDateFrom || transactionDateTo);
+  (Array.isArray(customers) ? customers : []).forEach(cust => {
+    const histories = (historyMap[cust.id] || cust.purchaseHistories || [])
+      .filter(h => {
+        if (!(h.date || h.products || h.invoiceLink)) return false;
+        if (!hasTransactionDateFilter) return true;
+        const transactionDate = toISODate(h.date);
+        return transactionDate
+          && (!transactionDateFrom || transactionDate >= transactionDateFrom)
+          && (!transactionDateTo || transactionDate <= transactionDateTo);
+      });
+    if (histories.length === 0) {
+      if (!hasTransactionDateFilter) flatRows.push({ cust, history: null });
+      return;
+    }
+    histories.forEach(h => flatRows.push({ cust, history: h }));
+  });
 
   if (!user || !hasAccess) {
     return (
@@ -430,7 +564,7 @@ export default function CRMSystem() {
                 <div className="flex gap-2">
                   <button type="button" onClick={handleSaveData} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1">
                     {isAddingPurchaseHistory ? <FilePlus2 className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-                    {editingId ? (editingHistoryId ? 'Cập nhật giao dịch' : (isAddingPurchaseHistory ? 'Thêm mới giao dịch' : 'Cập nhật khách hàng')) : 'Lưu khách hàng'}
+                    {editingId ? (editingHistoryId ? 'Cập nhật khách hàng & giao dịch' : (isAddingPurchaseHistory ? 'Cập nhật khách hàng & thêm giao dịch' : 'Cập nhật khách hàng')) : 'Lưu khách hàng'}
                   </button>
                   <button type="button" onClick={handleClearForm} className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all">
                     Xóa trắng
@@ -451,7 +585,7 @@ export default function CRMSystem() {
                     : 'bg-indigo-50 border-indigo-100 text-indigo-700'
                     }`}>
                     {editingHistoryId
-                      ? `Chế độ: Đang SỬA lịch sử mua hàng của khách hàng [ ${formData.fullName || ''} ]`
+                      ? `Chế độ: Đang SỬA khách hàng & giao dịch của [ ${formData.fullName || ''} ]`
                       : (isAddingPurchaseHistory
                         ? `Chế độ: Đang THÊM ĐƠN HÀNG MỚI cho khách hàng [ ${formData.fullName || ''} ]`
                         : `Chế độ: Đang CẬP NHẬT thông tin cá nhân của [ ${formData.fullName || ''} ]`
@@ -498,7 +632,7 @@ export default function CRMSystem() {
                     <div className="md:col-span-3">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hệ sinh thái</label>
                       <SearchableSelect
-                        disabled={isAddingPurchaseHistory || (!isAdmin && availableEcosystemOptions.length === 1)}
+                        disabled={!isAdmin && availableEcosystemOptions.length === 1}
                         options={availableEcosystemOptions}
                         value={formData.ecosystem || ''}
                         placeholder="-- Click để chọn hệ sinh thái --"
@@ -690,7 +824,6 @@ export default function CRMSystem() {
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Gán nhãn phân cấp</label>
                     <SearchableSelect
-                      disabled={isAddingPurchaseHistory}
                       options={LABELS.map(l => ({ value: l.value, label: l.label }))}
                       value={formData.label || ''}
                       placeholder="-- Chọn giai đoạn --"
@@ -714,7 +847,10 @@ export default function CRMSystem() {
               <input type="text" placeholder="Tìm kiếm theo Tên, SĐT, Email..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm" value={crmSearch || ''} onChange={e => { setCrmSearch(e.target.value); setCurrentPage(1); }} />
             </div>
             <SearchableSelect
-              options={LABELS.map(l => ({ value: l.value, label: l.label }))}
+              options={[
+                { value: '', label: 'Tất cả nhãn gán' },
+                ...LABELS.map(l => ({ value: l.value, label: l.label }))
+              ]}
               value={crmFilterLabel || ''}
               placeholder="Lọc theo nhãn gán"
               onChange={(value) => { setCrmFilterLabel(value); setCurrentPage(1); }}
@@ -722,13 +858,36 @@ export default function CRMSystem() {
             />
             {!isStaff && (
               <SearchableSelect
-                options={availableEcosystemOptions}
+                options={[
+                  { value: '', label: 'Tất cả hệ sinh thái' },
+                  ...availableEcosystemOptions.map(l => ({ value: l.value, label: l.label }))
+                ]}
                 value={crmFilterEco || ''}
                 placeholder="Tất cả hệ sinh thái"
                 onChange={(value) => { setCrmFilterEco(value); setCurrentPage(1); }}
                 className="w-[180px]"
               />
             )}
+            <label className="flex flex-col gap-1 text-[10px] font-bold text-slate-500 uppercase">
+              Từ ngày giao dịch
+              <input
+                type="date"
+                value={transactionDateFrom}
+                max={transactionDateTo || undefined}
+                onChange={e => { setTransactionDateFrom(e.target.value); setCurrentPage(1); }}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-normal text-slate-700"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-[10px] font-bold text-slate-500 uppercase">
+              Đến ngày giao dịch
+              <input
+                type="date"
+                value={transactionDateTo}
+                min={transactionDateFrom || undefined}
+                onChange={e => { setTransactionDateTo(e.target.value); setCurrentPage(1); }}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-normal text-slate-700"
+              />
+            </label>
             <div className="flex items-center gap-1.5 text-xs text-slate-500 ml-auto">
               <span>Hiển thị:</span>
               <SearchableSelect
@@ -749,66 +908,286 @@ export default function CRMSystem() {
               </div>
             )}
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[1150px] table-fixed">
+              <table className="w-full text-left border-collapse min-w-[4450px] table-fixed">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    <th className="px-4 py-4 w-40">Mã khách hàng</th>
-                    <th className="px-4 py-4 w-64">Thông tin cơ bản</th>
-                    <th className="px-4 py-4 w-64">Kênh liên hệ</th>
-                    <th className="px-4 py-4 w-40">Tổng số lần mua</th>
-                    <th className="px-4 py-4 w-44 text-center">Nhãn trạng thái</th>
-                    <th className="px-4 py-4 w-44 text-center">Tổng tiền đã mua</th>
-                    <th className="px-4 py-4 w-40 text-center">Hành động</th>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                    <th className="px-4 py-3.5 text-center w-12">STT</th>
+                    <th className="px-4 py-3.5 w-40 border-l border-slate-200">Mã khách hàng</th>
+                    <th className="px-4 py-3.5 w-64">Thông tin cơ bản</th>
+                    <th className="px-4 py-3.5 w-64">Kênh liên hệ</th>
+                    <th className="px-4 py-3.5 w-40">Tổng số lần mua</th>
+                    <th className="px-4 py-3.5 w-44 text-center">Nhãn trạng thái</th>
+                    <th className="px-4 py-3.5 w-44 text-center">Tổng tiền đã mua</th>
+                    <th className="px-4 py-3.5 w-32 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">Ngày giao dịch</th>
+                    <th className="px-4 py-3.5 w-60 bg-indigo-50/20 text-indigo-900">Sản phẩm</th>
+                    <th className="px-4 py-3.5 text-center w-36 bg-indigo-50/20 text-indigo-900">Hóa đơn (URL)</th>
+                    <th className="px-4 py-3.5 w-40 bg-indigo-50/20 text-indigo-900">Hạng mục</th>
+                    <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Phân loại</th>
+                    <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Báo giá</th>
+                    <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Giá chốt</th>
+                    <th className="px-4 py-3.5 w-36 bg-rose-50/20 text-rose-900">Công nợ phải thu</th>
+                    <th className="px-4 py-3.5 w-28 border-l border-slate-200 bg-sky-50/20 text-sky-900">Số ngày thuê</th>
+                    <th className="px-4 py-3.5 w-36 bg-sky-50/20 text-sky-900">Phương thức Thanh toán</th>
+                    <th className="px-4 py-3.5 w-36 bg-sky-50/20 text-sky-900">Nguồn khách hàng</th>
+                    <th className="px-4 py-3.5 w-44 bg-sky-50/20 text-sky-900">Khách hàng giới thiệu</th>
+                    <th className="px-4 py-3.5 w-64 border-l border-slate-200 bg-amber-50/20 text-amber-900">Mối quan tâm</th>
+                    <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Quà tặng áp dụng</th>
+                    <th className="px-4 py-3.5 w-48 bg-amber-50/20 text-amber-900">Kênh tiếp cận</th>
+                    <th className="px-4 py-3.5 w-44 border-l border-slate-200 bg-emerald-50/20 text-emerald-900">Người bán</th>
+                    <th className="px-4 py-3.5 w-44 bg-emerald-50/20 text-emerald-900">Nhân sự tư vấn</th>
+                    <th className="px-4 py-3.5 w-44 bg-emerald-50/20 text-emerald-900">Người chăm sóc</th>
+                    <th className="px-4 py-3.5 text-center w-44 border-l border-slate-200 bg-slate-100 text-slate-700">Hành động</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 text-xs">
-                  {Array.isArray(customers) && customers.map(cust => (
-                    <tr key={cust.id} className="hover:bg-slate-50/60 transition-colors align-top">
-                      <td className="px-4 py-4 text-start font-mono text-slate-700 text-[11px]">
-                        {cust.id}
-                      </td>
-                      <td className="px-3 py-3 space-y-1">
-                        <span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span>
-                        <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{toDMY(cust.birthday) || 'Chưa cập nhật'}</span></div>
-                        <div className="text-slate-600"><span className="text-slate-500">Địa chỉ:</span> <p className="inline break-words font-medium">{cust.address || 'Chưa cập nhật'}</p></div>
-                      </td>
-                      <td className="px-3 py-3 space-y-1">
-                        <div><span className="text-slate-500">SĐT:</span> <span className="font-bold text-slate-900">{cust.phone}</span></div>
-                        <div><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-800 break-all">{cust.email || 'Chưa điền'}</span></div>
-                        <div><span className="text-slate-500">Facebook:</span> {cust.facebook ? <a href={cust.facebook} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium break-all">{cust.facebook}</a> : <span className="text-slate-400 italic">Trống</span>}</div>
-                        <div className="pt-1"><span className="bg-slate-100 border text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px]">{ECOSYSTEM_OPTIONS.find(e => e.value === cust.ecosystem)?.label || cust.ecosystem || 'Chưa chọn'}</span></div>
-                      </td>
-                      <td className="px-3 py-3 space-y-1">
-                        <span className="font-bold text-indigo-600">lần {cust.purchaseCount || 0}</span>
-                      </td>
-                      <td className="px-4 py-4 text-center whitespace-nowrap">
-                        {(() => {
-                          const currentLabel = LABELS.find(l => l.value === cust.label);
-                          return (
-                            <span className={`inline-block w-full text-center py-1.5 rounded-xl font-bold text-xs border ${currentLabel?.color || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                              {currentLabel?.label || 'Chưa phân cấp'}
+                <tbody className="divide-y divide-slate-200 text-xs bg-white">
+                  {flatRows.map(({ cust: customer, history: h }, index) => {
+                    const cust = customer;
+                    const history = h || {};
+                    return (
+                      <tr key={`${cust.id}-${h?.id ?? 'empty'}-${index}`} className="hover:bg-slate-50/60 transition-colors align-top">
+                        <td className="px-4 py-4 font-semibold text-slate-400 text-center">{index + 1}</td>
+                        <td className="px-4 py-4 text-start font-mono text-slate-700 text-[11px]">
+                          {cust.id}
+                        </td>
+                        <td className="px-3 py-3 space-y-1">
+                          <span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span>
+                          <div><span className="text-slate-500">Ngày sinh:</span> <span className="font-medium text-slate-800">{toDMY(cust.birthday) || 'Chưa cập nhật'}</span></div>
+                          <div className="text-slate-600"><span className="text-slate-500">Địa chỉ:</span> <p className="inline break-words font-medium">{cust.address || 'Chưa cập nhật'}</p></div>
+                        </td>
+                        <td className="px-3 py-3 space-y-1">
+                          <div><span className="text-slate-500">SĐT:</span> <span className="font-bold text-slate-900">{cust.phone}</span></div>
+                          <div><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-800 break-all">{cust.email || 'Chưa điền'}</span></div>
+                          <div><span className="text-slate-500">Facebook:</span> {cust.facebook ? <a href={cust.facebook} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium break-all">{cust.facebook}</a> : <span className="text-slate-400 italic">Trống</span>}</div>
+                          <div className="pt-1"><span className="bg-slate-100 border text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px]">{ECOSYSTEM_OPTIONS.find(e => e.value === cust.ecosystem)?.label || cust.ecosystem || 'Chưa chọn'}</span></div>
+                        </td>
+                        <td className="px-3 py-3 space-y-1">
+                          <span className="font-bold text-indigo-600">lần {cust.purchaseCount || 0}</span>
+                        </td>
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          {(() => {
+                            const currentLabel = LABELS.find(l => l.value === cust.label);
+                            return (
+                              <span className={`inline-block w-full text-center py-1.5 rounded-xl font-bold text-xs border ${currentLabel?.color || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                {currentLabel?.label || 'Chưa phân cấp'}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-4 py-4 text-center font-bold text-emerald-600 text-sm">
+                          {totalSpentMap[cust.id] !== undefined ? (
+                            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalSpentMap[cust.id])
+                          ) : (
+                            <span className="text-slate-400 font-normal text-xs italic">Đang tải...</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 font-bold text-slate-900 whitespace-nowrap border-l border-slate-200 bg-indigo-50/5">
+                          {history.date || '---'}
+                        </td>
+                        <td className="px-4 py-4 text-slate-800 font-bold leading-relaxed break-words bg-indigo-50/5">
+                          {history.products || '---'}
+                        </td>
+
+                        <td className="px-4 py-4 text-center whitespace-nowrap bg-indigo-50/5">
+                          {history.invoiceLink ? (
+                            <div className="flex justify-center items-center h-full pt-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(history.invoiceLink);
+                                  // Có thể thay alert bằng thư viện thông báo của bạn (ví dụ: toast.success('Đã copy!'))
+                                  alert('Đã sao chép liên kết!');
+                                }}
+                                className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg font-semibold transition-all text-[11px]"
+                                title={history.invoiceLink}
+                              >
+                                <Copy className="w-3 h-3" />
+                                <span>Copy liên kết</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 italic">Trống</span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4 text-slate-800 font-medium break-words border-l border-slate-200 bg-indigo-50/5">
+                          {history.category || <span className="text-slate-300 italic">Trống</span>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700 whitespace-nowrap bg-indigo-50/5">
+                          {history.itemType === 'ban' ? (
+                            <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded-md text-[11px] font-bold">Bán</span>
+                          ) : history.itemType === 'dich_vu' ? (
+                            <span className="bg-violet-50 border border-violet-200 text-violet-700 px-2 py-0.5 rounded-md text-[11px] font-bold">Dịch vụ</span>
+                          ) : (
+                            <span className="text-slate-300 italic">Trống</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700 break-words bg-indigo-50/5">
+                          {history.quote || <span className="text-slate-300 italic">Trống</span>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-900 font-bold whitespace-nowrap bg-indigo-50/5">
+                          {history.price || <span className="text-slate-300 italic font-normal">Trống</span>}
+                        </td>
+                        <td className="px-3 py-3 bg-rose-50/5">
+                          {h?.id ? (
+                            <>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                aria-label={`Công nợ phải thu của ${cust.fullName || 'khách hàng'}`}
+                                title="Nhập số tiền khách hàng còn nợ"
+                                value={receivableDebtDrafts[h.id] ?? h.receivableDebt ?? 0}
+                                disabled={Boolean(savingReceivableDebtIds[h.id])}
+                                onChange={event => handleReceivableDebtChange(h.id, event.target.value)}
+                                onBlur={() => handleSaveReceivableDebt(cust, h)}
+                                className="w-full min-w-[100px] bg-white border border-rose-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:bg-slate-100"
+                              />
+                              {savingReceivableDebtIds[h.id] && (
+                                <span className="text-[10px] text-slate-500">Đang lưu...</span>
+                              )}
+                              {receivableDebtErrors[h.id] && (
+                                <span className="block text-[10px] text-rose-600">{receivableDebtErrors[h.id]}</span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-slate-300 italic">---</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-center font-bold text-sky-700 border-l border-slate-200 bg-sky-50/5">
+                          {history.rentalDays || 0}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-sky-50/5">
+                          {history.paymentMethod ? (
+                            <span className="bg-sky-50 border border-sky-200 text-sky-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                              {{ momo: 'Momo', ngan_hang: 'Ngân hàng', tien_mat: 'Tiền mặt' }[history.paymentMethod] || history.paymentMethod}
                             </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-4 py-4 text-center font-bold text-emerald-600 text-sm">
-                        {totalSpentMap[cust.id] !== undefined ? (
-                          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalSpentMap[cust.id])
-                        ) : (
-                          <span className="text-slate-400 font-normal text-xs italic">Đang tải...</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <div className="flex flex-col gap-1 items-center">
-                          <button onClick={() => handleOpenModal(cust)} className="w-full py-1 text-[11px] bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg border border-indigo-600">Xem chi tiết</button>
-                          <button onClick={() => handleEditClick(cust)} className="w-full py-1 text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border">Sửa thông tin</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {(!Array.isArray(customers) || customers.length === 0) && !isLoading && (
+                          ) : (
+                            <span className="text-slate-300 italic">Trống</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-sky-50/5">
+                          {history.customerSource ? (
+                            <span className="bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                              {{ fanpage: 'Fanpage', tiktok: 'TikTok', youtube: 'YouTube', zalo: 'Zalo', website: 'Website', partner: 'Partner', sale: 'Sale' }[history.customerSource] || history.customerSource}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic">Trống</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-sky-50/5">
+                          {history.referralCustomerId ? (
+                            <span className="bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                              ID: {history.referralCustomerId}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic">Không có</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700 font-medium leading-relaxed break-words border-l border-slate-200 bg-amber-50/5">
+                          {history.issue || customer.issue || <span className="text-slate-400 italic">Chưa ghi nhận</span>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-600 leading-relaxed break-words bg-amber-50/5">
+                          {history.promotions && history.promotions.length > 0 ? (
+                            history.promotions.map((p, idx) => (
+                              <div key={idx} className="mb-1.5 last:mb-0">
+                                <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-block">{p.event}</span>
+                              </div>
+                            ))
+                          ) : customer.promotions && customer.promotions.length > 0 ? (
+                            customer.promotions.map((p, idx) => (
+                              <div key={idx} className="mb-1.5 last:mb-0">
+                                <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-block">{p.event}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-slate-400 italic">Không áp dụng</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 bg-amber-50/5">
+                          <div className="flex flex-wrap gap-1">
+                            {history.careMethods && history.careMethods.length > 0 ? (
+                              history.careMethods.map(m => (
+                                <span key={m} className="bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold shadow-3xs">{m}</span>
+                              ))
+                            ) : customer.careMethods && customer.careMethods.length > 0 ? (
+                              customer.careMethods.map(m => (
+                                <span key={m} className="bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold shadow-3xs">{m}</span>
+                              ))
+                            ) : (
+                              <span className="text-slate-300 italic">Trống</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap border-l border-slate-200 bg-emerald-50/5">
+                          {history.seller ? (
+                            <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                              {staffOptions.find(s => s.value === history.seller)?.label || history.seller}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Chưa chỉ định</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-emerald-50/5">
+                          {history.consultant ? (
+                            <span className="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                              {staffOptions.find(s => s.value === history.consultant)?.label || history.consultant}
+                            </span>
+                          ) : customer.consultant ? (
+                            <span className="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                              {staffOptions.find(s => s.value === customer.consultant)?.label || customer.consultant}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Chưa chỉ định</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap bg-emerald-50/5">
+                          {history.careStaff ? (
+                            <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                              {staffOptions.find(s => s.value === history.careStaff)?.label || history.careStaff}
+                            </span>
+                          ) : customer.careStaff ? (
+                            <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md text-[11px]">
+                              {staffOptions.find(s => s.value === customer.careStaff)?.label || customer.careStaff}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Chưa chỉ định</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-center border-l border-slate-200 bg-slate-50/50">
+                          <div className="flex flex-row gap-1 items-center">
+                            <button
+                              type="button"
+                              onClick={() => handleAddTransaction(cust)}
+                              className="flex-1 py-1 px-1.5 text-[11px] bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center gap-1 font-bold"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => (h?.id ? handleEditTransaction(cust, h) : handleEditClick(cust))}
+                              className="flex-1 py-1 px-1.5 text-[11px] bg-amber-500 hover:bg-amber-600 text-white rounded-lg flex items-center justify-center gap-1 font-bold"
+                              title="Sửa thông tin khách hàng và giao dịch trong form"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </button>
+                            {h?.id && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteHistory(cust.id, h.id)}
+                                className="flex-1 py-1 px-1.5 text-[11px] bg-rose-500 hover:bg-rose-600 text-white rounded-lg flex items-center justify-center gap-1 font-bold"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {flatRows.length === 0 && !isLoading && (
                     <tr>
-                      <td colSpan="7" className="text-center py-8 text-slate-400 italic">Không tìm thấy khách hàng nào khớp với bộ lọc.</td>
+                      <td colSpan="26" className="text-center py-8 text-slate-400 italic">Không tìm thấy khách hàng nào khớp với bộ lọc.</td>
                     </tr>
                   )}
                 </tbody>
@@ -823,70 +1202,6 @@ export default function CRMSystem() {
             />
           </div>
         </div>
-
-        {/* MODAL */}
-        <CustomerDetailModal
-          customer={selectedCustomerForModal}
-          onClose={() => setSelectedCustomerForModal(null)}
-          staffOptions={staffList.map(s => ({ value: s.fullName, label: s.fullName }))}
-          getPurchaseHistoriesFn={() => detailCustomerPurchaseHistory}
-          onAddTransaction={handleAddTransactionFromModal}
-          onDeleteTransaction={(historyId) => handleDeleteHistory(selectedCustomerForModal?.id, historyId)}
-          onEditTransaction={async (history) => {
-            const customerId = selectedCustomerForModal?.id;
-            if (!customerId || !history?.id) {
-              setFormError('Không tìm thấy mã định danh giao dịch hoặc khách hàng.');
-              return;
-            }
-
-            setFormData({
-              ...EMPTY_CUSTOMER,
-              fullName: selectedCustomerForModal.fullName || '',
-              birthday: toISODate(selectedCustomerForModal.birthday) || '',
-              address: selectedCustomerForModal.address || '',
-              phone: selectedCustomerForModal.phone || '',
-              email: selectedCustomerForModal.email || '',
-              facebook: selectedCustomerForModal.facebook || '',
-              ecosystem: selectedCustomerForModal.ecosystem || '',
-              label: selectedCustomerForModal.label || '',
-              purchaseCount: selectedCustomerForModal.purchaseCount ?? 0,
-              referralCustomerId: history.referralCustomerId ?? selectedCustomerForModal.referralCustomerId ?? '',
-              singleDate: toISODate(history.date) || getTodayISODate(),
-              products: history.products || '',
-              invoiceLink: history.invoiceLink || '',
-              issue: history.issue || '',
-              careMethods: Array.isArray(history.careMethods) ? history.careMethods : [],
-              promotions: Array.isArray(history.promotions) ? history.promotions : [],
-              consultant: history.consultant || '',
-              careStaff: history.careStaff || '',
-              category: history.category || '',
-              itemType: history.itemType || '',
-              quote: history.quote || '',
-              price: history.price || 0,
-              rentalDays: history.rentalDays ?? 0,
-              paymentMethod: history.paymentMethod || '',
-              customerSource: history.customerSource || '',
-              seller: history.seller || ''
-            });
-
-            setEditingId(customerId);
-            setEditingHistoryId(history.id);
-            setIsAddingPurchaseHistory(false);
-            setSelectedCustomerForModal(null);
-            setFormError('');
-
-            const referralId = history.referralCustomerId ?? selectedCustomerForModal?.referralCustomerId;
-            if (referralId) {
-              const alreadyInList = referralOptionsList.some(c => String(c.id) === String(referralId));
-              if (!alreadyInList) {
-                const referrer = await fetchCustomerById(referralId);
-                if (referrer) setReferralOptionsList(prev => [...prev, referrer]);
-              }
-            }
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-        />
 
       </main>
 
