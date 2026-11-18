@@ -64,6 +64,10 @@ const createWindow = () => {
         },
       ],
     },
+    {
+      label: "Quản lý chi phí",
+      click: () => mainWindow.webContents.send("navigate", "/expenses"),
+    },
   ];
 
   if (isDev) {
