@@ -25,7 +25,7 @@ function Login() {
             if (response.EC === 0 && userData) {
                 localStorage.setItem('userInfo', JSON.stringify(userData));
                 login(userData);
-                // Chuyển hướng đến dashboard sau khi đăng nhập thành công
+                // Chuyển hướng đến chăm sóc khách hàng sau khi đăng nhập thành công
                 navigate('/csm');
             } else {
                 setError('Tài khoản hoặc mật khẩu không đúng. Vui lòng thử lại.');

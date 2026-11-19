@@ -1,4 +1,4 @@
-// mockDashboard.js
+// mockAccount.js
 export const INITIAL_USERS = [
   {
     id: 1,

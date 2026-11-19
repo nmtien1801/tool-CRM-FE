@@ -38,7 +38,7 @@ const createWindow = () => {
       submenu: [
         {
           label: "Quản lý tài khoản",
-          click: () => mainWindow.webContents.send("navigate", "/dashboard"),
+          click: () => mainWindow.webContents.send("navigate", "/account"),
         },
         {
           label: "Thông báo",
@@ -67,6 +67,19 @@ const createWindow = () => {
     {
       label: "Quản lý chi phí",
       click: () => mainWindow.webContents.send("navigate", "/expenses"),
+    },
+    {
+      label: "Dashboard",
+      submenu: [
+        {
+          label: "Kinh doanh",
+          click: () => mainWindow.webContents.send("navigate", "/analytics"),
+        },
+        {
+          label: "marketing",
+          click: () => mainWindow.webContents.send("navigate", "/marketing"),
+        },
+      ],
     },
   ];
 

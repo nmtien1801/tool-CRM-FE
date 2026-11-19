@@ -7,7 +7,7 @@ import ApiAuth from '../api/ApiAuth';
 import SearchableSelect from '../components/SearchableSelect';
 import { useAuth } from '../context/AuthContext';
 
-export default function DashboardPage() {
+export default function AccountPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);

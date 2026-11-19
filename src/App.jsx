@@ -7,9 +7,11 @@ import QuanLyKhachHang from './page/QuanLyKhachHang';
 import ProtectedRoute from './components/ProtectedRoute';
 import ThongBao from './page/ThongBao';
 import ChamSocKhachHang from './page/ChamSocKhachHang';
-import Dashboard from './page/Dashboard';
+import AccountPage from './page/Account.jsx';
 import EcosystemPage from './page/ecosystem.jsx';
 import ExpensesPage from './page/Expenses.jsx';
+import BusinessReportPage from './page/BusinessReportPage.jsx';
+import MarketingReportPage from './page/MarketingReportPage.jsx';
 
 // ─────────────────────────────────────────────
 // Component con — nằm TRONG <Router> nên dùng được useNavigate
@@ -36,12 +38,12 @@ function AppRoutes() {
       {/* Route Đăng nhập */}
       <Route path="/login" element={<Login />} />
 
-      {/* Route Dashboard - chỉ admin*/}
+      {/* Route AccountPage - chỉ admin*/}
       <Route
-        path="/dashboard"
+        path="/account"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <AccountPage />
           </ProtectedRoute>
         }
       />
@@ -60,6 +62,24 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ExpensesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute>
+            <BusinessReportPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/marketing"
+        element={
+          <ProtectedRoute>
+            <MarketingReportPage />
           </ProtectedRoute>
         }
       />
