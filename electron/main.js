@@ -52,7 +52,20 @@ const createWindow = () => {
       ],
     },
     {
-      label: "Khách hàng",
+      label: "Dashboard",
+      submenu: [
+        {
+          label: "Kinh doanh",
+          click: () => mainWindow.webContents.send("navigate", "/analytics"),
+        },
+        {
+          label: "Marketing",
+          click: () => mainWindow.webContents.send("navigate", "/marketing"),
+        },
+      ],
+    },
+    {
+      label: "Quản lý khách hàng",
       submenu: [
         {
           label: "Quản lý khách hàng (CRM)",
@@ -67,19 +80,6 @@ const createWindow = () => {
     {
       label: "Quản lý chi phí",
       click: () => mainWindow.webContents.send("navigate", "/expenses"),
-    },
-    {
-      label: "Dashboard",
-      submenu: [
-        {
-          label: "Kinh doanh",
-          click: () => mainWindow.webContents.send("navigate", "/analytics"),
-        },
-        {
-          label: "marketing",
-          click: () => mainWindow.webContents.send("navigate", "/marketing"),
-        },
-      ],
     },
   ];
 

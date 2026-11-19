@@ -134,16 +134,11 @@ export default function MarketingReportPage() {
               <Megaphone className="h-6 w-6" />
             </span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Dashboard</p>
-              <h1 className="text-2xl font-bold text-slate-900">Báo cáo Marketing &amp; LTV</h1>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Gộp khách trùng theo hệ sinh thái và số điện thoại.
-              </p>
+              <h1 className="text-2xl font-bold text-slate-900">Báo cáo Marketing</h1>
             </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <DashboardDateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-slate-600">Trạng thái khách hàng</span>
               <select
@@ -159,6 +154,7 @@ export default function MarketingReportPage() {
                 ))}
               </select>
             </label>
+            <DashboardDateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
           </div>
         </header>
 
@@ -191,13 +187,13 @@ export default function MarketingReportPage() {
                   </div>
                 </article>
                 <MetricCard
-                  label="Doanh thu trong khoảng đã chọn"
+                  label="Doanh thu trong khoảng thời gian đã chọn"
                   value={report.periodValue}
                   icon={CalendarDays}
                   tone="bg-emerald-50 text-emerald-600"
                 />
                 <MetricCard
-                  label="Tổng giá trị mua từ đầu"
+                  label="Tổng doanh thu"
                   value={report.lifetimeValue}
                   icon={CircleDollarSign}
                   tone="bg-blue-50 text-blue-600"
@@ -225,9 +221,9 @@ export default function MarketingReportPage() {
                           <th className="px-4 py-3">Điện thoại</th>
                           <th className="px-4 py-3">Hệ sinh thái</th>
                           <th className="px-4 py-3">Trạng thái</th>
-                          <th className="px-4 py-3 text-right">Số lần mua (kỳ lọc)</th>
-                          <th className="px-4 py-3 text-right">Giá trị trong kỳ</th>
-                          <th className="px-4 py-3 text-right">Tổng mua từ đầu</th>
+                          <th className="px-4 py-3 text-right">Số lần mua</th>
+                          <th className="px-4 py-3 text-right">Số tiền mua</th>
+                          <th className="px-4 py-3 text-right">Tổng tiền đã mua</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">

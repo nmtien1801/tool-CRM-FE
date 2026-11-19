@@ -42,26 +42,26 @@ function MetricCard({ label, value, icon: Icon, tone }) {
 
 function DashboardDateRange({ from, to, setFrom, setTo }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <label className="block">
-        <span className="mb-1.5 block text-xs font-semibold text-slate-600">Từ ngày</span>
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="flex items-center gap-2">
+        <span className="whitespace-nowrap text-xs font-semibold text-slate-600">Từ ngày</span>
         <input
           type="date"
           value={from}
           max={to || undefined}
           onChange={(event) => setFrom(event.target.value)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
         />
       </label>
-      <label className="block">
-        <span className="mb-1.5 block text-xs font-semibold text-slate-600">Đến ngày</span>
+      <label className="flex items-center gap-2">
+        <span className="whitespace-nowrap text-xs font-semibold text-slate-600">Đến ngày</span>
         <input
           type="date"
           value={to}
           min={from || undefined}
           max={todayISO()}
           onChange={(event) => setTo(event.target.value)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
         />
       </label>
     </div>
@@ -90,6 +90,7 @@ export default function BusinessReportPage() {
       setLoading(true);
       setError("");
       const response = await ApiDashboard.getBusinessReport({ from, to });
+
       if (response?.EC !== 0) throw new Error(response?.EM || "Không thể tải báo cáo.");
       setReport(response.DT);
     } catch (loadError) {
@@ -133,11 +134,7 @@ export default function BusinessReportPage() {
               <TrendingUp className="h-6 w-6" />
             </span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Dashboard</p>
               <h1 className="text-2xl font-bold text-slate-900">Báo cáo kinh doanh</h1>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Doanh thu theo ngày giao dịch; chi phí theo ngày thanh toán.
-              </p>
             </div>
           </div>
           <DashboardDateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
@@ -183,16 +180,13 @@ export default function BusinessReportPage() {
 
             <section>
               <h2 className="mb-3 text-sm font-bold text-slate-800">Kết quả riêng từng hệ sinh thái</h2>
-              <p className="mb-3 text-xs text-slate-500">
-                Chi phí vốn, vận hành và quản lý được nhóm theo hạng mục đã quy định; chi phí nhân sự của MEDIA thuộc cả chi phí vốn và vận hành. Đầu tư được hiển thị riêng.
-              </p>
               <div className="grid gap-4 xl:grid-cols-2">
                 {ecosystemRows.map((item) => (
                   <article key={item.ecosystem} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h3 className="mb-4 font-bold text-slate-900">{item.label}</h3>
                     <dl className="grid grid-cols-2 gap-3 text-sm">
                       <div className="rounded-xl bg-slate-50 p-3">
-                        <dt className="text-xs text-slate-500">Doanh thu</dt>
+                        <dt className="text-xs text-slate-500">Tổng doanh thu</dt>
                         <dd className="mt-1 font-bold">{money(item.revenue)}</dd>
                       </div>
                       <div className="rounded-xl bg-slate-50 p-3">
@@ -216,7 +210,7 @@ export default function BusinessReportPage() {
                         <dd className="mt-1 font-bold">{money(item.managementCost)}</dd>
                       </div>
                       <div className="rounded-xl bg-slate-50 p-3">
-                        <dt className="text-xs text-slate-500">Chi phí đầu tư (chưa phân nhóm)</dt>
+                        <dt className="text-xs text-slate-500">Chi phí đầu tư</dt>
                         <dd className="mt-1 font-bold">{money(item.unclassifiedCost)}</dd>
                       </div>
                     </dl>
