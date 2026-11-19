@@ -92,6 +92,7 @@ export default function CRMSystem() {
   const [crmSearchById, setCrmSearchById] = useState('');
   const [crmFilterLabel, setCrmFilterLabel] = useState('');
   const [crmFilterEco, setCrmFilterEco] = useState('');
+  const [crmFilterAds, setCrmFilterAds] = useState(false);
   const [transactionDateFrom, setTransactionDateFrom] = useState('');
   const [transactionDateTo, setTransactionDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,6 +133,7 @@ export default function CRMSystem() {
         id: crmSearchById,
         label: crmFilterLabel,
         ecosystem: crmFilterEco,
+        ads: crmFilterAds ? 'true' : '',
         transactionDateFrom,
         transactionDateTo,
         page: currentPage,
@@ -188,6 +190,7 @@ export default function CRMSystem() {
     crmSearchById,
     crmFilterLabel,
     crmFilterEco,
+    crmFilterAds,
     transactionDateFrom,
     transactionDateTo,
     hasAccess
@@ -302,20 +305,22 @@ export default function CRMSystem() {
     [
       ...(Array.isArray(customers) ? customers : []),
       ...(Array.isArray(referralOptionsList) ? referralOptionsList : [])
-    ].filter((customer, index, list) =>
-      list.findIndex((item) => String(item.id) === String(customer.id)) === index
-    ).find((customer) => {
-      if (excludedId !== null && String(customer.id) === String(excludedId)) return false;
-      if (String(customer.ecosystem || '') !== String(ecosystem || '')) return false;
+    ]
+      .filter((customer, index, list) =>
+        list.findIndex((item) => String(item.id) === String(customer.id)) === index
+      )
+      .find((customer) => {
+        if (excludedId !== null && String(customer.id) === String(excludedId)) return false;
+        if (String(customer.ecosystem || '') !== String(ecosystem || '')) return false;
 
-      const customerPhone = normalizePhone(customer.phone);
-      const inputPhone = normalizePhone(phone);
-      const samePhone = inputPhone && customerPhone && customerPhone === inputPhone;
-      const sameName =
-        normalizeDuplicateText(customer.fullName) &&
-        normalizeDuplicateText(customer.fullName) === normalizeDuplicateText(fullName);
-      return samePhone || sameName;
-    });
+        const customerPhone = normalizePhone(customer.phone);
+        const inputPhone = normalizePhone(phone);
+        const samePhone = inputPhone && customerPhone && customerPhone === inputPhone;
+        const sameName =
+          normalizeDuplicateText(customer.fullName) &&
+          normalizeDuplicateText(customer.fullName) === normalizeDuplicateText(fullName);
+        return samePhone || sameName;
+      });
 
   // --- HANDLERS ---
   const handleClearForm = () => {
@@ -629,7 +634,6 @@ export default function CRMSystem() {
       issue: history.issue || '',
       careMethods: Array.isArray(history.careMethods) ? history.careMethods : [],
       promotions: Array.isArray(history.promotions) ? history.promotions : [],
-      ads: Boolean(history.ads),
       consultant: history.consultant || '',
       careStaff: history.careStaff || '',
       category: history.category || '',
@@ -798,6 +802,9 @@ export default function CRMSystem() {
   (Array.isArray(customers) ? customers : []).forEach((cust) => {
     const histories = (historyMap[cust.id] || cust.purchaseHistories || []).filter((h) => {
       if (!(h.date || h.products || h.invoiceLink)) return false;
+
+      if (crmFilterAds && !Boolean(h.ads)) return false;
+
       if (!hasTransactionDateFilter) return true;
       const transactionDate = toISODate(h.date);
       return (
@@ -807,7 +814,7 @@ export default function CRMSystem() {
       );
     });
     if (histories.length === 0) {
-      if (!hasTransactionDateFilter) flatRows.push({ cust, history: null });
+      if (!hasTransactionDateFilter && !crmFilterAds) flatRows.push({ cust, history: null });
       return;
     }
     histories.forEach((h) => flatRows.push({ cust, history: h }));
@@ -1021,7 +1028,7 @@ export default function CRMSystem() {
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hạng mục</label>
                       <input
                         type="text"
-                        placeholder="Nục"
+                        placeholder="Nhập hạng mục"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.category || ''}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -1329,6 +1336,18 @@ export default function CRMSystem() {
                 }}
               />
             </div>
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={crmFilterAds}
+                onChange={(e) => {
+                  setCrmFilterAds(e.target.checked);
+                  setCurrentPage(1);
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>Ads</span>
+            </label>
             <SearchableSelect
               options={[
                 { value: '', label: 'Tất cả nhãn gán' },
@@ -1589,10 +1608,12 @@ export default function CRMSystem() {
                         </td>
                         <td className="px-4 py-4 text-center bg-indigo-50/5">
                           {h?.id ? (
-                            <span className={`inline-flex rounded-md border px-2 py-1 text-[11px] font-bold ${Boolean(history.ads)
-                              ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                              : 'border-slate-200 bg-white text-slate-400'
-                              }`}>
+                            <span
+                              className={`inline-flex rounded-md border px-2 py-1 text-[11px] font-bold ${Boolean(history.ads)
+                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-200 bg-white text-slate-400'
+                                }`}
+                            >
                               {Boolean(history.ads) ? 'Có' : 'Không'}
                             </span>
                           ) : (
