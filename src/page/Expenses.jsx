@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowDownToLine,
   Loader2,
+  Lock,
   Pencil,
-  Plus,
   RotateCcw,
   Search,
   Trash2,
   X,
 } from "lucide-react";
 import ApiExpenses from "../api/ApiExpenses";
+import { useAuth } from "../context/AuthContext";
 
 const ECOSYSTEM_OPTIONS = [
   { value: "CMIC_STUDIO", label: "CMIC STUDIO" },
@@ -39,7 +40,7 @@ const EMPTY_FORM = {
   unitCost: "",
   quantity: "1",
   expenseType: "",
-  payableAmount: "", // Đổi từ isPayable: false sang nhập số tiền
+  payableAmount: "",
   paymentDate: "",
   paymentMethod: "",
   status: "N/A",
@@ -91,6 +92,9 @@ function SelectField({ value, onChange, options, placeholder, required = false }
 }
 
 export default function ExpensesPage() {
+  const { user } = useAuth();
+  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
+
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -104,6 +108,7 @@ export default function ExpensesPage() {
   const formSectionRef = useRef(null);
 
   const loadExpenses = useCallback(async () => {
+    if (!isAdmin) return;
     try {
       setLoading(true);
       setError("");
@@ -117,11 +122,13 @@ export default function ExpensesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
-    loadExpenses();
-  }, [loadExpenses]);
+    if (isAdmin) {
+      loadExpenses();
+    }
+  }, [isAdmin, loadExpenses]);
 
   const visibleExpenses = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase("vi");
@@ -138,6 +145,18 @@ export default function ExpensesPage() {
       );
     });
   }, [expenses, search, categoryFilter, statusFilter]);
+
+  if (!user || !isAdmin) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-6 text-center">
+        <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-rose-600 shadow-xs">
+          <Lock className="h-12 w-12 stroke-[1.5]" />
+        </div>
+        <h1 className="text-lg font-bold text-slate-900">Không có quyền truy cập</h1>
+        <p className="mt-1 text-sm text-slate-500">Quản lý chi phí chỉ dành cho Admin.</p>
+      </main>
+    );
+  }
 
   const estimatedTotal = (Number(form.unitCost) || 0) * (Number(form.quantity) || 0);
 
@@ -177,7 +196,7 @@ export default function ExpensesPage() {
         unitCost: Number(form.unitCost),
         quantity: Number(form.quantity),
         payableAmount: payableVal,
-        isPayable: payableVal > 0, // Giữ lại cờ boolean phòng trường hợp backend vẫn dùng
+        isPayable: payableVal > 0,
       };
       const response = editingId
         ? await ApiExpenses.updateExpense(editingId, payload)
@@ -233,9 +252,7 @@ export default function ExpensesPage() {
         <section
           ref={formSectionRef}
           aria-labelledby="expense-form-title"
-          className={`rounded-2xl border bg-white shadow-sm transition ${editingId
-            ? "border-indigo-300 ring-2 ring-indigo-100"
-            : "border-slate-200"
+          className={`rounded-2xl border bg-white shadow-sm transition ${editingId ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-200"
             }`}
         >
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:px-6">
