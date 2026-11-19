@@ -138,6 +138,7 @@ export const EMPTY_CUSTOMER = {
   itemType: "",
   quote: "",
   price: 0,
+  ads: false,
   // Nhóm 4 bổ sung: thuê, thanh toán, nguồn khách hàng
   rentalDays: 0,
   paymentMethod: "",

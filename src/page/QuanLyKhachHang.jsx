@@ -82,7 +82,8 @@ export default function CRMSystem() {
     paymentMethod: '',
     customerSource: '',
     referralCustomerId: '',
-    seller: ''
+    seller: '',
+    ads: false
   });
   const [promoEvent, setPromoEvent] = useState('');
 
@@ -285,6 +286,37 @@ export default function CRMSystem() {
     return '';
   };
 
+  const normalizeDuplicateText = (value) =>
+    String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
+
+  const findDuplicateCustomer = (ecosystem, phone, fullName, excludedId = null) =>
+    [
+      ...(Array.isArray(customers) ? customers : []),
+      ...(Array.isArray(referralOptionsList) ? referralOptionsList : [])
+    ].filter((customer, index, list) =>
+      list.findIndex((item) => String(item.id) === String(customer.id)) === index
+    ).find((customer) => {
+      if (excludedId !== null && String(customer.id) === String(excludedId)) return false;
+      if (String(customer.ecosystem || '') !== String(ecosystem || '')) return false;
+
+      const customerPhone = normalizePhone(customer.phone);
+      const inputPhone = normalizePhone(phone);
+      const samePhone = inputPhone && customerPhone && customerPhone === inputPhone;
+      const sameName =
+        normalizeDuplicateText(customer.fullName) &&
+        normalizeDuplicateText(customer.fullName) === normalizeDuplicateText(fullName);
+      return samePhone || sameName;
+    });
+
   // --- HANDLERS ---
   const handleClearForm = () => {
     setFormData({
@@ -314,7 +346,8 @@ export default function CRMSystem() {
       paymentMethod: '',
       customerSource: '',
       referralCustomerId: '',
-      seller: ''
+      seller: '',
+      ads: false
     });
     setEditingId(null);
     setEditingHistoryId(null);
@@ -364,10 +397,11 @@ export default function CRMSystem() {
       paymentMethod: formData.paymentMethod || '',
       customerSource: formData.customerSource || '',
       referralCustomerId: parsedReferralId,
-      seller: formData.seller || ''
+      seller: formData.seller || '',
+      ads: Boolean(formData.ads)
     };
 
-    const customerPayload = {
+    let customerPayload = {
       fullName: cleanName,
       birthday: formData.birthday ? toISODate(formData.birthday) : null,
       address: formData.address || '',
@@ -381,45 +415,144 @@ export default function CRMSystem() {
 
     setIsSaving(true);
     try {
+      let targetCustomerId = editingId;
+      if (!editingId) {
+        const duplicateCustomer = findDuplicateCustomer(
+          formData.ecosystem,
+          cleanPhone,
+          cleanName
+        );
+        if (duplicateCustomer) {
+          targetCustomerId = duplicateCustomer.id;
+        }
+      } else if (editingId && editingHistoryId) {
+        const duplicateCustomer = findDuplicateCustomer(
+          formData.ecosystem,
+          cleanPhone,
+          cleanName,
+          editingId
+        );
+        if (duplicateCustomer) {
+          targetCustomerId = duplicateCustomer.id;
+        }
+      } else if (editingId) {
+        const duplicateCustomer = findDuplicateCustomer(
+          formData.ecosystem,
+          cleanPhone,
+          cleanName,
+          editingId
+        );
+        if (duplicateCustomer) {
+          targetCustomerId = duplicateCustomer.id;
+        }
+      }
+
+      const resolvedCustomer =
+        (Array.isArray(customers) ? customers : []).find(
+          (customer) => String(customer.id) === String(targetCustomerId)
+        ) ||
+        (Array.isArray(referralOptionsList) ? referralOptionsList : []).find(
+          (customer) => String(customer.id) === String(targetCustomerId)
+        );
+      const resolvedHistories =
+        targetCustomerId
+          ? (historyMap[targetCustomerId] || resolvedCustomer?.purchaseHistories || [])
+          : [];
+      const resolvedHistoryCount = resolvedHistories.filter((history) =>
+        history?.date || history?.products || history?.invoiceLink
+      ).length;
+      const nextPurchaseCount =
+        !editingId
+          ? resolvedHistoryCount + 1
+          : editingHistoryId
+            ? (targetCustomerId && targetCustomerId !== editingId
+              ? resolvedHistoryCount + 1
+              : resolvedHistoryCount)
+            : resolvedHistoryCount + 1;
+      customerPayload = { ...customerPayload, purchaseCount: nextPurchaseCount };
+
+      if (targetCustomerId && targetCustomerId !== editingId) {
+        const duplicateResponse = await ApiCustomer.updateCustomer(targetCustomerId, customerPayload);
+        const duplicateResult = duplicateResponse?.data || duplicateResponse;
+        if (duplicateResult?.EC !== undefined && duplicateResult.EC !== 0) {
+          throw new Error(duplicateResult.EM || 'Không thể cập nhật thông tin khách hàng trùng.');
+        }
+      }
+
       if (editingId && editingHistoryId) {
         // Sửa dòng hiện có: cập nhật thông tin khách hàng + dòng sản phẩm/giao dịch
-        const customerResponse = await ApiCustomer.updateCustomer(editingId, customerPayload);
+        const customerResponse = await ApiCustomer.updateCustomer(
+          targetCustomerId || editingId,
+          customerPayload
+        );
         const custRes = customerResponse?.data || customerResponse;
         if (custRes?.EC !== undefined && custRes.EC !== 0) {
           throw new Error(custRes.EM || 'Không thể cập nhật khách hàng.');
         }
 
-        const historyResponse = await ApiPurchaseHistory.updatePurchaseHistory(editingHistoryId, historyPayload);
+        let historyResponse;
+        if (targetCustomerId && targetCustomerId !== editingId) {
+          historyResponse = await ApiPurchaseHistory.createPurchaseHistory(targetCustomerId, historyPayload);
+          const movedHistRes = historyResponse?.data || historyResponse;
+          if (movedHistRes?.EC !== undefined && movedHistRes.EC !== 0) {
+            throw new Error(movedHistRes.EM || 'Không thể chuyển giao dịch sang khách hàng trùng.');
+          }
+          await ApiPurchaseHistory.deletePurchaseHistory(editingHistoryId);
+          const sourceHistories =
+            historyMap[editingId] ||
+            customers.find((customer) => String(customer.id) === String(editingId))?.purchaseHistories ||
+            [];
+          const remainingSourceHistories = sourceHistories.filter(
+            (history) => String(history.id) !== String(editingHistoryId)
+          );
+          if (remainingSourceHistories.length === 0) {
+            await ApiCustomer.deleteCustomer(editingId);
+          } else {
+            await ApiCustomer.updateCustomer(editingId, {
+              purchaseCount: remainingSourceHistories.length
+            });
+          }
+        } else {
+          historyResponse = await ApiPurchaseHistory.updatePurchaseHistory(editingHistoryId, historyPayload);
+        }
         const histRes = historyResponse?.data || historyResponse;
         if (histRes?.EC !== undefined && histRes.EC !== 0) {
           throw new Error(histRes.EM || 'Không thể cập nhật giao dịch.');
         }
       } else if (editingId) {
         // Sửa khách hàng chưa có dòng giao dịch: cập nhật khách + tạo dòng giao dịch
-        const customerResponse = await ApiCustomer.updateCustomer(editingId, customerPayload);
+        const resolvedCustomerId = targetCustomerId || editingId;
+        const customerResponse = await ApiCustomer.updateCustomer(resolvedCustomerId, customerPayload);
         const custRes = customerResponse?.data || customerResponse;
         if (custRes?.EC !== undefined && custRes.EC !== 0) {
           throw new Error(custRes.EM || 'Không thể cập nhật khách hàng.');
         }
 
-        const historyResponse = await ApiPurchaseHistory.createPurchaseHistory(editingId, historyPayload);
+        const historyResponse = await ApiPurchaseHistory.createPurchaseHistory(resolvedCustomerId, historyPayload);
         const histRes = historyResponse?.data || historyResponse;
         if (histRes?.EC !== undefined && histRes.EC !== 0) {
           throw new Error(histRes.EM || 'Không thể tạo dòng giao dịch.');
         }
+        if (targetCustomerId && targetCustomerId !== editingId) {
+          await ApiCustomer.deleteCustomer(editingId);
+        }
       } else {
         // Thêm mới: tạo khách hàng mới + tạo luôn 1 dòng hàng giao dịch cho khách đó
-        const customerResponse = await ApiCustomer.createCustomer(customerPayload);
-        const custRes = customerResponse?.data || customerResponse;
-        if (custRes?.EC !== undefined && custRes.EC !== 0) {
-          throw new Error(custRes.EM || 'Không thể thêm khách hàng.');
-        }
-        const customerResult = custRes?.DT || custRes;
-        if (!customerResult?.id) {
-          throw new Error('Không lấy được mã khách hàng vừa thêm.');
+        let customerId = targetCustomerId;
+        if (!customerId) {
+          const customerResponse = await ApiCustomer.createCustomer(customerPayload);
+          const custRes = customerResponse?.data || customerResponse;
+          if (custRes?.EC !== undefined && custRes.EC !== 0) {
+            throw new Error(custRes.EM || 'Không thể thêm khách hàng.');
+          }
+          const customerResult = custRes?.DT || custRes;
+          if (!customerResult?.id) {
+            throw new Error('Không lấy được mã khách hàng vừa thêm.');
+          }
+          customerId = customerResult.id;
         }
 
-        const historyResponse = await ApiPurchaseHistory.createPurchaseHistory(customerResult.id, historyPayload);
+        const historyResponse = await ApiPurchaseHistory.createPurchaseHistory(customerId, historyPayload);
         const histRes = historyResponse?.data || historyResponse;
         if (histRes?.EC !== undefined && histRes.EC !== 0) {
           throw new Error(histRes.EM || 'Đã tạo khách nhưng không thể thêm hàng giao dịch.');
@@ -454,7 +587,8 @@ export default function CRMSystem() {
       rentalDays: 0,
       paymentMethod: '',
       customerSource: '',
-      seller: ''
+      seller: '',
+      ads: false
     });
     setEditingId(customer.id);
     setEditingHistoryId(null);
@@ -495,6 +629,7 @@ export default function CRMSystem() {
       issue: history.issue || '',
       careMethods: Array.isArray(history.careMethods) ? history.careMethods : [],
       promotions: Array.isArray(history.promotions) ? history.promotions : [],
+      ads: Boolean(history.ads),
       consultant: history.consultant || '',
       careStaff: history.careStaff || '',
       category: history.category || '',
@@ -505,7 +640,8 @@ export default function CRMSystem() {
       rentalDays: Number(history.rentalDays) || 0,
       paymentMethod: history.paymentMethod || '',
       customerSource: history.customerSource || '',
-      seller: history.seller || ''
+      seller: history.seller || '',
+      ads: Boolean(history.ads)
     });
 
     setEditingId(customerId);
@@ -878,18 +1014,20 @@ export default function CRMSystem() {
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    <div>
+
+                  {/* Hàng: Hạng mục - Phân loại - ADS */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1 items-end">
+                    <div className="md:col-span-6">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hạng mục</label>
                       <input
                         type="text"
-                        placeholder="Nhập hạng mục"
+                        placeholder="Nục"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.category || ''}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       />
                     </div>
-                    <div>
+                    <div className="md:col-span-5">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phân loại</label>
                       <SearchableSelect
                         options={ITEM_TYPE_OPTIONS}
@@ -899,6 +1037,19 @@ export default function CRMSystem() {
                         className="w-full"
                       />
                     </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ads</label>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(formData.ads)}
+                        onChange={(e) => setFormData({ ...formData, ads: e.target.checked })}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Hàng: Báo giá - Giá chốt */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
                       <input
@@ -1274,6 +1425,7 @@ export default function CRMSystem() {
                     <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Phân loại</th>
                     <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Báo giá</th>
                     <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Giá chốt</th>
+                    <th className="px-4 py-3.5 w-28 bg-indigo-50/20 text-indigo-900">ADS</th>
                     <th className="px-4 py-3.5 w-36 bg-rose-50/20 text-rose-900">Công nợ phải thu</th>
                     <th className="px-4 py-3.5 w-28 border-l border-slate-200 bg-sky-50/20 text-sky-900">
                       Số ngày thuê
@@ -1433,6 +1585,18 @@ export default function CRMSystem() {
                             )
                           ) : (
                             <span className="text-slate-300 italic font-normal">Trống</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-center bg-indigo-50/5">
+                          {h?.id ? (
+                            <span className={`inline-flex rounded-md border px-2 py-1 text-[11px] font-bold ${Boolean(history.ads)
+                              ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                              : 'border-slate-200 bg-white text-slate-400'
+                              }`}>
+                              {Boolean(history.ads) ? 'Có' : 'Không'}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic">---</span>
                           )}
                         </td>
                         <td className="px-3 py-3 bg-rose-50/5">
@@ -1611,7 +1775,7 @@ export default function CRMSystem() {
                   })}
                   {flatRows.length === 0 && !isLoading && (
                     <tr>
-                      <td colSpan="26" className="text-center py-8 text-slate-400 italic">
+                      <td colSpan="27" className="text-center py-8 text-slate-400 italic">
                         Không tìm thấy khách hàng nào khớp với bộ lọc.
                       </td>
                     </tr>
