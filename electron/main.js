@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDev = !app.isPackaged;
+const isMac = process.platform === "darwin";
 
 let mainWindow;
 
@@ -29,10 +30,10 @@ const createWindow = () => {
   }
 
   if (isDev) mainWindow.webContents.openDevTools();
-  // mainWindow.webContents.openDevTools();
 
   // THANH MENU ĐIỀU HƯỚNG HỆ THỐNG
   const menuTemplate = [
+    ...(isMac ? [{ role: "appMenu" }] : []),
     {
       label: "File",
       submenu: [
@@ -48,7 +49,21 @@ const createWindow = () => {
           label: "Hệ sinh thái",
           click: () => mainWindow.webContents.send("navigate", "/ecosystem"),
         },
-        { label: "Thoát", role: "quit" },
+        { label: "Thoát", role: isMac ? "close" : "quit" },
+      ],
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { label: "Hoàn tác", role: "undo" },
+        { label: "Làm lại", role: "redo" },
+        { type: "separator" },
+        { label: "Cắt", role: "cut" },
+        { label: "Sao chép", role: "copy" },
+        { label: "Dán", role: "paste" },
+        { label: "Dán khớp định dạng", role: "pasteAndMatchStyle" },
+        { label: "Xóa", role: "delete" },
+        { label: "Chọn tất cả", role: "selectAll" },
       ],
     },
     {
