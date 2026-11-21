@@ -106,6 +106,24 @@ export default function CRMSystem() {
   const [savingReceivableDebtIds, setSavingReceivableDebtIds] = useState({});
   const [receivableDebtErrors, setReceivableDebtErrors] = useState({});
 
+  const handleMacTextPaste = (e, currentValue, onUpdate, { numeric = false } = {}) => {
+    e.stopPropagation();
+    const raw =
+      e.clipboardData?.getData('text/plain') ||
+      e.clipboardData?.getData('text/uri-list') ||
+      '';
+    if (!raw) return;
+
+    e.preventDefault();
+    const input = e.currentTarget;
+    const current = String(currentValue ?? '');
+    const start = input.selectionStart ?? current.length;
+    const end = input.selectionEnd ?? current.length;
+    const merged = current.slice(0, start) + raw + current.slice(end);
+
+    onUpdate(numeric ? parseNumericValue(merged) : merged);
+  };
+
   // 1. Tải danh sách Staff
   const fetchStaff = async () => {
     try {
@@ -485,7 +503,6 @@ export default function CRMSystem() {
       }
 
       if (editingId && editingHistoryId) {
-        // Sửa dòng hiện có: cập nhật thông tin khách hàng + dòng sản phẩm/giao dịch
         const customerResponse = await ApiCustomer.updateCustomer(
           targetCustomerId || editingId,
           customerPayload
@@ -525,7 +542,6 @@ export default function CRMSystem() {
           throw new Error(histRes.EM || 'Không thể cập nhật giao dịch.');
         }
       } else if (editingId) {
-        // Sửa khách hàng chưa có dòng giao dịch: cập nhật khách + tạo dòng giao dịch
         const resolvedCustomerId = targetCustomerId || editingId;
         const customerResponse = await ApiCustomer.updateCustomer(resolvedCustomerId, customerPayload);
         const custRes = customerResponse?.data || customerResponse;
@@ -542,7 +558,6 @@ export default function CRMSystem() {
           await ApiCustomer.deleteCustomer(editingId);
         }
       } else {
-        // Thêm mới: tạo khách hàng mới + tạo luôn 1 dòng hàng giao dịch cho khách đó
         let customerId = targetCustomerId;
         if (!customerId) {
           const customerResponse = await ApiCustomer.createCustomer(customerPayload);
@@ -665,13 +680,14 @@ export default function CRMSystem() {
   };
 
   const handleReceivableDebtChange = (historyId, value) => {
-    setReceivableDebtDrafts((previous) => ({ ...previous, [historyId]: value }));
+    const cleaned = value.replace(/[^\d]/g, '');
+    setReceivableDebtDrafts((previous) => ({ ...previous, [historyId]: cleaned }));
     setReceivableDebtErrors((previous) => ({ ...previous, [historyId]: '' }));
   };
 
   const handleSaveReceivableDebt = async (customer, history) => {
-    const rawValue = receivableDebtDrafts[history.id] ?? String(history.receivableDebt ?? 0);
-    const receivableDebt = rawValue.trim() === '' ? 0 : Number(rawValue);
+    const rawValue = String(receivableDebtDrafts[history.id] ?? history.receivableDebt ?? 0);
+    const receivableDebt = rawValue.trim() === '' ? 0 : parseNumericValue(rawValue);
     if (!Number.isFinite(receivableDebt) || receivableDebt < 0) {
       setReceivableDebtErrors((previous) => ({
         ...previous,
@@ -796,7 +812,6 @@ export default function CRMSystem() {
 
   const staffOptions = staffList.map((s) => ({ value: s.fullName, label: s.fullName }));
 
-  // Mỗi cặp (Khách hàng + Sản phẩm/Giao dịch) là 1 hàng riêng trên bảng
   const flatRows = [];
   const hasTransactionDateFilter = Boolean(transactionDateFrom || transactionDateTo);
   (Array.isArray(customers) ? customers : []).forEach((cust) => {
@@ -893,6 +908,11 @@ export default function CRMSystem() {
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
                         value={formData.fullName || ''}
                         onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                        onPaste={(e) =>
+                          handleMacTextPaste(e, formData.fullName, (val) =>
+                            setFormData((prev) => ({ ...prev, fullName: val }))
+                          )
+                        }
                       />
                     </div>
                     <div>
@@ -912,6 +932,11 @@ export default function CRMSystem() {
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.address || ''}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        onPaste={(e) =>
+                          handleMacTextPaste(e, formData.address, (val) =>
+                            setFormData((prev) => ({ ...prev, address: val }))
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -929,6 +954,11 @@ export default function CRMSystem() {
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
                         value={formData.phone || ''}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        onPaste={(e) =>
+                          handleMacTextPaste(e, formData.phone, (val) =>
+                            setFormData((prev) => ({ ...prev, phone: val }))
+                          )
+                        }
                       />
                     </div>
                     <div>
@@ -939,6 +969,11 @@ export default function CRMSystem() {
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.email || ''}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        onPaste={(e) =>
+                          handleMacTextPaste(e, formData.email, (val) =>
+                            setFormData((prev) => ({ ...prev, email: val.trim() }))
+                          )
+                        }
                       />
                     </div>
                     <div>
@@ -949,6 +984,11 @@ export default function CRMSystem() {
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.facebook || ''}
                         onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
+                        onPaste={(e) =>
+                          handleMacTextPaste(e, formData.facebook, (val) =>
+                            setFormData((prev) => ({ ...prev, facebook: val.trim() }))
+                          )
+                        }
                       />
                     </div>
                     <div className="md:col-span-3">
@@ -1006,6 +1046,11 @@ export default function CRMSystem() {
                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800"
                             value={formData.products || ''}
                             onChange={(e) => setFormData({ ...formData, products: e.target.value })}
+                            onPaste={(e) =>
+                              handleMacTextPaste(e, formData.products, (val) =>
+                                setFormData((prev) => ({ ...prev, products: val }))
+                              )
+                            }
                           />
                         </div>
                         <div>
@@ -1016,6 +1061,11 @@ export default function CRMSystem() {
                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             value={formData.invoiceLink || ''}
                             onChange={(e) => setFormData({ ...formData, invoiceLink: e.target.value })}
+                            onPaste={(e) =>
+                              handleMacTextPaste(e, formData.invoiceLink, (val) =>
+                                setFormData((prev) => ({ ...prev, invoiceLink: val.trim() }))
+                              )
+                            }
                           />
                         </div>
                       </div>
@@ -1032,6 +1082,11 @@ export default function CRMSystem() {
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.category || ''}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        onPaste={(e) =>
+                          handleMacTextPaste(e, formData.category, (val) =>
+                            setFormData((prev) => ({ ...prev, category: val }))
+                          )
+                        }
                       />
                     </div>
                     <div className="md:col-span-5">
@@ -1065,18 +1120,35 @@ export default function CRMSystem() {
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.quote || ''}
                         onChange={(e) => setFormData({ ...formData, quote: e.target.value })}
+                        onPaste={(e) =>
+                          handleMacTextPaste(e, formData.quote, (val) =>
+                            setFormData((prev) => ({ ...prev, quote: val }))
+                          )
+                        }
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá chốt</label>
                       <input
-                        type="number"
-                        min="0"
+                        type="text"
                         inputMode="numeric"
                         placeholder="Nhập giá"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.price ?? 0}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            price: e.target.value === '' ? 0 : parseNumericValue(e.target.value)
+                          })
+                        }
+                        onPaste={(e) =>
+                          handleMacTextPaste(
+                            e,
+                            formData.price,
+                            (val) => setFormData((prev) => ({ ...prev, price: val })),
+                            { numeric: true }
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -1092,16 +1164,24 @@ export default function CRMSystem() {
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số ngày thuê</label>
                         <input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
                           placeholder="0"
                           className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           value={formData.rentalDays ?? 0}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              rentalDays: e.target.value === '' ? 0 : Number(e.target.value)
+                              rentalDays: e.target.value === '' ? 0 : parseNumericValue(e.target.value)
                             })
+                          }
+                          onPaste={(e) =>
+                            handleMacTextPaste(
+                              e,
+                              formData.rentalDays,
+                              (val) => setFormData((prev) => ({ ...prev, rentalDays: val })),
+                              { numeric: true }
+                            )
                           }
                         />
                       </div>
@@ -1164,6 +1244,9 @@ export default function CRMSystem() {
                           placeholder="Nhập tên khuyến mãi rồi ấn Enter..."
                           value={promoEvent || ''}
                           onChange={(e) => setPromoEvent(e.target.value)}
+                          onPaste={(e) =>
+                            handleMacTextPaste(e, promoEvent, (val) => setPromoEvent(val))
+                          }
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -1322,6 +1405,12 @@ export default function CRMSystem() {
                   setCrmSearchById(e.target.value);
                   setCurrentPage(1);
                 }}
+                onPaste={(e) =>
+                  handleMacTextPaste(e, crmSearchById, (val) => {
+                    setCrmSearchById(val.trim());
+                    setCurrentPage(1);
+                  })
+                }
               />
             </div>
             <div className="flex-1 min-w-[280px]">
@@ -1334,6 +1423,12 @@ export default function CRMSystem() {
                   setCrmSearch(e.target.value);
                   setCurrentPage(1);
                 }}
+                onPaste={(e) =>
+                  handleMacTextPaste(e, crmSearch, (val) => {
+                    setCrmSearch(val);
+                    setCurrentPage(1);
+                  })
+                }
               />
             </div>
             <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors">
@@ -1624,15 +1719,21 @@ export default function CRMSystem() {
                           {h?.id ? (
                             <>
                               <input
-                                type="number"
-                                min="0"
-                                step="1"
+                                type="text"
                                 inputMode="numeric"
                                 aria-label={`Công nợ phải thu của ${cust.fullName || 'khách hàng'}`}
                                 title="Nhập số tiền khách hàng còn nợ"
                                 value={receivableDebtDrafts[h.id] ?? h.receivableDebt ?? 0}
                                 disabled={Boolean(savingReceivableDebtIds[h.id])}
                                 onChange={(event) => handleReceivableDebtChange(h.id, event.target.value)}
+                                onPaste={(event) =>
+                                  handleMacTextPaste(
+                                    event,
+                                    receivableDebtDrafts[h.id] ?? h.receivableDebt ?? 0,
+                                    (val) => handleReceivableDebtChange(h.id, String(val)),
+                                    { numeric: true }
+                                  )
+                                }
                                 onBlur={() => handleSaveReceivableDebt(cust, h)}
                                 className="w-full min-w-[100px] bg-white border border-rose-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:bg-slate-100"
                               />

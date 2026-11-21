@@ -65,7 +65,7 @@ const createWindow = () => {
       ],
     },
     {
-      label: "Quản lý khách hàng",
+      label: "Khách hàng và Chi phí",
       submenu: [
         {
           label: "Quản lý khách hàng (CRM)",
@@ -75,11 +75,11 @@ const createWindow = () => {
           label: "Quản lý chăm sóc khách hàng (CSM)",
           click: () => mainWindow.webContents.send("navigate", "/csm"),
         },
+        {
+          label: "Quản lý chi phí",
+          click: () => mainWindow.webContents.send("navigate", "/expenses"),
+        },
       ],
-    },
-    {
-      label: "Quản lý chi phí",
-      click: () => mainWindow.webContents.send("navigate", "/expenses"),
     },
   ];
 

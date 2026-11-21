@@ -229,7 +229,7 @@ export default function MarketingReportPage() {
                       <tbody className="divide-y divide-slate-100">
                         {report.customers.map((customer) => (
                           <tr
-                            key={`${customer.ecosystem}-${customer.phone || customer.id}`}
+                            key={customer.id ?? `${customer.ecosystem}-${customer.phone}-${index}`}
                             className="hover:bg-slate-50/70"
                           >
                             <td className="px-4 py-3">
