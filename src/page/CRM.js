@@ -66,8 +66,7 @@ export const ITEM_TYPE_OPTIONS = [
 
 // Nhóm 4 bổ sung: phương thức thanh toán
 export const PAYMENT_METHOD_OPTIONS = [
-  { value: "momo", label: "Momo" },
-  { value: "ngan_hang", label: "Ngân hàng" },
+  { value: "chuyen_khoan", label: "Chuyển Khoản" },
   { value: "tien_mat", label: "Tiền mặt" },
 ];
 
@@ -112,6 +111,20 @@ export const PROMO_OPTIONS = [
   { value: "Voucher 500k sinh nhật", label: "Voucher 500k sinh nhật" },
   { value: "Sự kiện đối tác chiến lược", label: "Sự kiện đối tác chiến lược" },
   { value: "Flash Sale Black Friday", label: "Flash Sale Black Friday" },
+];
+
+export const CATEGORY_OPTIONS = [
+  { value: "Combo livestream", label: "Combo livestream" },
+  { value: "Soundcard", label: "Soundcard" },
+  { value: "Micro", label: "Micro" },
+  { value: "Boxlive", label: "Boxlive" },
+  { value: "Phụ kiện", label: "Phụ kiện" },
+  { value: "Loa", label: "Loa" },
+  { value: "Phần mềm", label: "Phần mềm" },
+  { value: "Headphone", label: "Headphone" },
+  { value: "Combo Podcast", label: "Combo Podcast" },
+  { value: "Setup livestream", label: "Setup livestream" },
+  { value: "Agency", label: "Agency" },
 ];
 
 export const EMPTY_CUSTOMER = {

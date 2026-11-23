@@ -73,6 +73,7 @@ export default function MarketingReportPage() {
   const role = String(user?.role || "").toLowerCase();
   const isAdmin = role === "admin";
   const isManager = role === "manager";
+  const hasAccess = isAdmin || (isManager && (user?.cmicStudio || user?.cmicMedia));
 
   const allowedEcosystems = useMemo(() => {
     if (isAdmin) return ECOSYSTEM_OPTIONS;
@@ -84,12 +85,13 @@ export default function MarketingReportPage() {
   const [from, setFrom] = useState(monthStartISO);
   const [to, setTo] = useState(todayISO);
   const [label, setLabel] = useState("");
+  const [ads, setAds] = useState(false);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadReport = useCallback(async () => {
-    if (!isAdmin && !isManager) return;
+    if (!hasAccess) return;
     if (!from || !to || from > to) {
       setError("Vui lòng chọn khoảng ngày hợp lệ.");
       setReport(null);
@@ -99,7 +101,12 @@ export default function MarketingReportPage() {
     try {
       setLoading(true);
       setError("");
-      const response = await ApiDashboard.getMarketingReport({ from, to, label });
+      const response = await ApiDashboard.getMarketingReport({
+        from,
+        to,
+        label,
+        ads: ads ? "true" : "",
+      });
       if (response?.EC !== 0) throw new Error(response?.EM || "Không thể tải báo cáo.");
       setReport(response.DT);
     } catch (loadError) {
@@ -108,18 +115,20 @@ export default function MarketingReportPage() {
     } finally {
       setLoading(false);
     }
-  }, [from, to, label, isAdmin, isManager]);
+  }, [from, to, label, ads, hasAccess]);
 
   useEffect(() => {
     loadReport();
   }, [loadReport]);
 
-  if (!isAdmin && !isManager) {
+  if (!hasAccess) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
         <div className="rounded-2xl border border-rose-200 bg-white p-8 text-center shadow-sm">
           <h1 className="font-bold text-slate-900">Không có quyền truy cập</h1>
-          <p className="mt-2 text-sm text-slate-500">Báo cáo Marketing chỉ dành cho Admin và Manager.</p>
+          <p className="mt-2 text-sm text-slate-500">
+            Báo cáo Marketing chỉ dành cho Admin và Manager được phân công hệ sinh thái.
+          </p>
         </div>
       </main>
     );
@@ -139,6 +148,21 @@ export default function MarketingReportPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label
+              className={`flex cursor-pointer select-none items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition-colors ${ads
+                ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                }`}
+            >
+              <input
+                type="checkbox"
+                checked={ads}
+                onChange={(event) => setAds(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>Ads</span>
+            </label>
+
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-slate-600">Trạng thái khách hàng</span>
               <select
@@ -204,7 +228,7 @@ export default function MarketingReportPage() {
                 <div className="border-b border-slate-100 p-4">
                   <h2 className="font-bold text-slate-900">Danh sách khách hàng</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Số lần mua được tính trong khoảng ngày đã chọn. Danh sách:{" "}
+                    Số lần mua được tính trong khoảng ngày đã chọn{ads ? " (lọc đơn từ Ads)" : ""}. Danh sách:{" "}
                     {allowedEcosystems.map((item) => item.label).join(", ") || "chưa được phân công"}.
                   </p>
                 </div>
@@ -227,7 +251,7 @@ export default function MarketingReportPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {report.customers.map((customer) => (
+                        {report.customers.map((customer, index) => (
                           <tr
                             key={customer.id ?? `${customer.ecosystem}-${customer.phone}-${index}`}
                             className="hover:bg-slate-50/70"

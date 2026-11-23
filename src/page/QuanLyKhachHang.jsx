@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Loader2, Lock, UserPlus, Edit, Trash2, Copy } from 'lucide-react';
-import InvoiceImageUploader from '../components/CRM/InvoiceImageUploader';
 import ExpandableInput from '../components/ExpandableInput';
 import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/CRM/ConfirmModal';
@@ -18,7 +17,8 @@ import {
   EMPTY_CUSTOMER,
   ITEM_TYPE_OPTIONS,
   PAYMENT_METHOD_OPTIONS,
-  CUSTOMER_SOURCE_OPTIONS
+  CUSTOMER_SOURCE_OPTIONS,
+  CATEGORY_OPTIONS
 } from './CRM';
 
 const getTodayISODate = () => {
@@ -130,7 +130,7 @@ export default function CRMSystem() {
       const response = await ApiAuth.getListUser();
       const result = response?.DT || response?.data?.DT || response?.data || response;
       const userList = result?.user || [];
-      const filteredStaff = userList.filter((u) => String(u.role).toLowerCase() === 'staff');
+      const filteredStaff = userList.filter((u) => String(u.role).toLowerCase() !== 'admin');
       setStaffList(filteredStaff);
     } catch (error) {
       console.error('Lỗi tải danh sách user:', error);
@@ -854,376 +854,463 @@ export default function CRMSystem() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 antialiased font-sans">
       <main className="max-w-[1600px] mx-auto px-4 py-8 space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          <InvoiceImageUploader onExtracted={(fields) => fields && setFormData((prev) => ({ ...prev, ...fields }))} />
-
-          <div className="lg:col-span-8 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
-            <div>
-              <div className="flex flex-wrap justify-between items-center border-b border-slate-100 pb-3 mb-4 gap-2">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-indigo-600">
-                  Biểu mẫu thông tin khách hàng &amp; đơn hàng
-                </h3>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={handleSaveData}
-                    className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1"
-                  >
-                    {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
-                    {editingId ? 'Cập nhật dòng hàng' : 'Lưu khách hàng & hàng'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleClearForm}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
-                  >
-                    Xóa trắng
-                  </button>
-                </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
+          <div>
+            <div className="flex flex-wrap justify-between items-center border-b border-slate-100 pb-3 mb-4 gap-2">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-indigo-600">
+                Biểu mẫu thông tin khách hàng &amp; đơn hàng
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={handleSaveData}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1"
+                >
+                  {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                  {editingId ? 'Cập nhật dòng hàng' : 'Lưu khách hàng & hàng'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearForm}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
+                >
+                  Xóa trắng
+                </button>
               </div>
+            </div>
 
-              {formError && (
-                <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 font-medium px-4 py-2.5 rounded-xl text-xs">
-                  {formError}
+            {formError && (
+              <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 font-medium px-4 py-2.5 rounded-xl text-xs">
+                {formError}
+              </div>
+            )}
+
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+              {editingId && (
+                <div className="rounded-xl px-3 py-2 text-xs font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
+                  {`Chế độ: Đang SỬA thông tin khách hàng & dòng hàng của [ ${formData.fullName || ''} ]`}
                 </div>
               )}
 
-              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                {editingId && (
-                  <div className="rounded-xl px-3 py-2 text-xs font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
-                    {`Chế độ: Đang SỬA thông tin khách hàng & dòng hàng của [ ${formData.fullName || ''} ]`}
+              {/* Nhóm 1: Cơ bản */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 1: Thông tin cơ bản</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Họ và tên *</label>
+                    <input
+                      type="text"
+                      placeholder="Nhập tên khách hàng"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                      value={formData.fullName || ''}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, formData.fullName, (val) =>
+                          setFormData((prev) => ({ ...prev, fullName: val }))
+                        )
+                      }
+                    />
                   </div>
-                )}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh</label>
+                    <input
+                      type="date"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.birthday || ''}
+                      onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Địa chỉ</label>
+                    <input
+                      type="text"
+                      placeholder="Nhập địa chỉ cư trú"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.address || ''}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, formData.address, (val) =>
+                          setFormData((prev) => ({ ...prev, address: val }))
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
 
-                {/* Nhóm 1: Cơ bản */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 1: Thông tin cơ bản</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Họ và tên *</label>
-                      <input
-                        type="text"
-                        placeholder="Nhập tên khách hàng"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
-                        value={formData.fullName || ''}
-                        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                        onPaste={(e) =>
-                          handleMacTextPaste(e, formData.fullName, (val) =>
-                            setFormData((prev) => ({ ...prev, fullName: val }))
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày sinh</label>
-                      <input
-                        type="date"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.birthday || ''}
-                        onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Địa chỉ</label>
-                      <input
-                        type="text"
-                        placeholder="Nhập địa chỉ cư trú"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.address || ''}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        onPaste={(e) =>
-                          handleMacTextPaste(e, formData.address, (val) =>
-                            setFormData((prev) => ({ ...prev, address: val }))
-                          )
-                        }
-                      />
-                    </div>
+              {/* Nhóm 2: Kênh liên hệ */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 2: Kênh liên hệ</h4>
+                <div className="grid grid-cols-1 md:grid-cols-10 gap-3 items-end">
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số điện thoại *</label>
+                    <input
+                      type="text"
+                      placeholder="Số điện thoại liên lạc"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                      value={formData.phone || ''}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, formData.phone, (val) =>
+                          setFormData((prev) => ({ ...prev, phone: val }))
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Thư điện tử (Email)</label>
+                    <input
+                      type="email"
+                      placeholder="Địa chỉ Email"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.email || ''}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, formData.email, (val) =>
+                          setFormData((prev) => ({ ...prev, email: val.trim() }))
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn Facebook</label>
+                    <input
+                      type="text"
+                      placeholder="Link Facebook"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.facebook || ''}
+                      onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, formData.facebook, (val) =>
+                          setFormData((prev) => ({ ...prev, facebook: val.trim() }))
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hệ sinh thái</label>
+                    <SearchableSelect
+                      disabled={!isAdmin && availableEcosystemOptions.length === 1}
+                      options={availableEcosystemOptions}
+                      value={formData.ecosystem || ''}
+                      placeholder="-- Chọn hệ sinh thái --"
+                      onChange={(value) => setFormData({ ...formData, ecosystem: value })}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Nhóm 3: Chi tiết đơn hàng */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wide">
+                  Nhóm 3: Chi tiết đơn hàng
+                </h4>
+
+                {/* Hàng 1 (10 cột): Tổng lần mua (2) - Ngày mua (2) - Tên sản phẩm (3) - Hóa đơn URL (3) */}
+                <div className="grid grid-cols-1 md:grid-cols-10 gap-3 items-end">
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Tổng số lần đã mua hàng
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs disabled:bg-slate-100 font-bold text-indigo-600"
+                      value={formData.purchaseCount || 0}
+                      disabled
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Ngày mua hàng
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.singleDate || ''}
+                      onChange={(e) => setFormData({ ...formData, singleDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Tên sản phẩm dịch vụ *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Tên sản phẩm dịch vụ"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.products || ''}
+                      onChange={(e) => setFormData({ ...formData, products: e.target.value })}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, formData.products, (val) =>
+                          setFormData((prev) => ({ ...prev, products: val }))
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Hóa đơn đầu ra (url)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Nhập đường dẫn URL hóa đơn..."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.invoiceLink || ''}
+                      onChange={(e) => setFormData({ ...formData, invoiceLink: e.target.value })}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, formData.invoiceLink, (val) =>
+                          setFormData((prev) => ({ ...prev, invoiceLink: val.trim() }))
+                        )
+                      }
+                    />
                   </div>
                 </div>
 
-                {/* Nhóm 2: Kênh liên hệ */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 2: Kênh liên hệ</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số điện thoại *</label>
-                      <input
-                        type="text"
-                        placeholder="Số điện thoại liên lạc"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
-                        value={formData.phone || ''}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        onPaste={(e) =>
-                          handleMacTextPaste(e, formData.phone, (val) =>
-                            setFormData((prev) => ({ ...prev, phone: val }))
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Thư điện tử (Email)</label>
-                      <input
-                        type="email"
-                        placeholder="Địa chỉ Email"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.email || ''}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        onPaste={(e) =>
-                          handleMacTextPaste(e, formData.email, (val) =>
-                            setFormData((prev) => ({ ...prev, email: val.trim() }))
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Đường dẫn Facebook</label>
-                      <input
-                        type="text"
-                        placeholder="Link Facebook"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.facebook || ''}
-                        onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
-                        onPaste={(e) =>
-                          handleMacTextPaste(e, formData.facebook, (val) =>
-                            setFormData((prev) => ({ ...prev, facebook: val.trim() }))
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="md:col-span-3">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hệ sinh thái</label>
-                      <SearchableSelect
-                        disabled={!isAdmin && availableEcosystemOptions.length === 1}
-                        options={availableEcosystemOptions}
-                        value={formData.ecosystem || ''}
-                        placeholder="-- Click để chọn hệ sinh thái --"
-                        onChange={(value) => setFormData({ ...formData, ecosystem: value })}
-                        className="w-full"
-                      />
-                    </div>
+                {/* Hàng 2 (10 cột): Hạng mục (2) - Phân loại (2) - Báo giá (2) - Giá chốt (2) - Công nợ (1) - Ads (1) */}
+                <div className="grid grid-cols-1 md:grid-cols-10 gap-3 pt-1 items-end">
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hạng mục</label>
+                    <SearchableSelect
+                      options={
+                        formData.category && !CATEGORY_OPTIONS.some((opt) => opt.value === formData.category)
+                          ? [{ value: formData.category, label: formData.category }, ...CATEGORY_OPTIONS]
+                          : CATEGORY_OPTIONS
+                      }
+                      value={formData.category || ''}
+                      placeholder="-- Chọn hạng mục --"
+                      onChange={(value) => setFormData({ ...formData, category: value })}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phân loại</label>
+                    <SearchableSelect
+                      options={ITEM_TYPE_OPTIONS}
+                      value={formData.itemType || ''}
+                      placeholder="-- Chọn phân loại --"
+                      onChange={(value) => setFormData({ ...formData, itemType: value })}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
+                    <input
+                      type="text"
+                      placeholder="Nhập báo giá"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.quote || ''}
+                      onChange={(e) => setFormData({ ...formData, quote: e.target.value })}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, formData.quote, (val) =>
+                          setFormData((prev) => ({ ...prev, quote: val }))
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá chốt</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Nhập giá"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={formData.price ?? 0}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          price: e.target.value === '' ? 0 : parseNumericValue(e.target.value)
+                        })
+                      }
+                      onPaste={(e) =>
+                        handleMacTextPaste(
+                          e,
+                          formData.price,
+                          (val) => setFormData((prev) => ({ ...prev, price: val })),
+                          { numeric: true }
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-[10px] font-bold text-rose-600 uppercase mb-1">Công nợ</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      className="w-full bg-white border border-rose-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                      value={formData.receivableDebt ?? 0}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          receivableDebt: e.target.value === '' ? 0 : parseNumericValue(e.target.value)
+                        })
+                      }
+                      onPaste={(e) =>
+                        handleMacTextPaste(
+                          e,
+                          formData.receivableDebt,
+                          (val) => setFormData((prev) => ({ ...prev, receivableDebt: val })),
+                          { numeric: true }
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-1 flex flex-col items-center justify-center pb-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Ads</label>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.ads)}
+                      onChange={(e) => setFormData({ ...formData, ads: e.target.checked })}
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
                   </div>
                 </div>
 
-                {/* Nhóm 3: Chi tiết đơn hàng */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wide">
-                    Nhóm 3: Chi tiết đơn hàng (Mỗi đơn là 1 hàng)
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          Tổng số lần đã mua hàng
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs disabled:bg-slate-100 font-bold text-indigo-600"
-                          value={formData.purchaseCount || 0}
-                          disabled
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ngày mua hàng</label>
-                        <input
-                          type="date"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          value={formData.singleDate || ''}
-                          onChange={(e) => setFormData({ ...formData, singleDate: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col justify-end">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                            Tên sản phẩm dịch vụ *
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Tên sản phẩm dịch vụ"
-                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800"
-                            value={formData.products || ''}
-                            onChange={(e) => setFormData({ ...formData, products: e.target.value })}
-                            onPaste={(e) =>
-                              handleMacTextPaste(e, formData.products, (val) =>
-                                setFormData((prev) => ({ ...prev, products: val }))
-                              )
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hóa đơn đầu ra (url)</label>
-                          <input
-                            type="text"
-                            placeholder="Nhập đường dẫn URL hóa đơn..."
-                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            value={formData.invoiceLink || ''}
-                            onChange={(e) => setFormData({ ...formData, invoiceLink: e.target.value })}
-                            onPaste={(e) =>
-                              handleMacTextPaste(e, formData.invoiceLink, (val) =>
-                                setFormData((prev) => ({ ...prev, invoiceLink: val.trim() }))
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Hàng: Hạng mục - Phân loại - ADS */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1 items-end">
-                    <div className="md:col-span-6">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hạng mục</label>
+                {/* Hàng 3 (10 cột): Khuyến mãi áp dụng (5 cột) */}
+                <div className="grid grid-cols-1 md:grid-cols-10 gap-3 pt-1">
+                  <div className="md:col-span-5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Khuyến mãi áp dụng
+                    </label>
+                    <div className="flex gap-1.5">
                       <input
                         type="text"
-                        placeholder="Nhập hạng mục"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.category || ''}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Nhập tên khuyến mãi rồi ấn Enter..."
+                        value={promoEvent || ''}
+                        onChange={(e) => setPromoEvent(e.target.value)}
                         onPaste={(e) =>
-                          handleMacTextPaste(e, formData.category, (val) =>
-                            setFormData((prev) => ({ ...prev, category: val }))
-                          )
+                          handleMacTextPaste(e, promoEvent, (val) => setPromoEvent(val))
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (promoEvent.trim()) {
+                              setFormData({
+                                ...formData,
+                                promotions: [...(formData.promotions || []), { event: promoEvent.trim() }]
+                              });
+                            }
+                            setPromoEvent('');
+                          }
+                        }}
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (promoEvent.trim()) {
+                            setFormData({
+                              ...formData,
+                              promotions: [...(formData.promotions || []), { event: promoEvent.trim() }]
+                            });
+                          }
+                          setPromoEvent('');
+                        }}
+                        className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 text-xs font-bold rounded-xl border border-indigo-200 transition-colors"
+                      >
+                        Thêm
+                      </button>
                     </div>
-                    <div className="md:col-span-5">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phân loại</label>
-                      <SearchableSelect
-                        options={ITEM_TYPE_OPTIONS}
-                        value={formData.itemType || ''}
-                        placeholder="-- Chọn phân loại --"
-                        onChange={(value) => setFormData({ ...formData, itemType: value })}
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="md:col-span-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ads</label>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(formData.ads)}
-                        onChange={(e) => setFormData({ ...formData, ads: e.target.checked })}
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
+                    <div className="mt-1.5 space-y-1">
+                      {(formData.promotions || []).map((p, i) => (
+                        <div
+                          key={i}
+                          className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200"
+                        >
+                          <span>
+                            Sự kiện: <strong className="text-indigo-600">{p.event || ''}</strong>
+                          </span>
+                          <span
+                            className="text-rose-500 font-bold cursor-pointer hover:underline"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                promotions: formData.promotions.filter((_, idx) => idx !== i)
+                              })
+                            }
+                          >
+                            Gỡ
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* Hàng: Báo giá - Giá chốt */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
-                      <input
-                        type="text"
-                        placeholder="Nhập báo giá"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.quote || ''}
-                        onChange={(e) => setFormData({ ...formData, quote: e.target.value })}
-                        onPaste={(e) =>
-                          handleMacTextPaste(e, formData.quote, (val) =>
-                            setFormData((prev) => ({ ...prev, quote: val }))
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá chốt</label>
+              {/* Nhóm 4: Chăm sóc & Tiếp thị */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Nhóm 4: Chăm sóc &amp; Tiếp thị
+                </h4>
+                <div className="space-y-3">
+                  {/* Hàng 1 (10 cột - 5 trường, mỗi trường 2 cột) */}
+                  <div className="grid grid-cols-1 md:grid-cols-10 gap-3 items-end">
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số ngày thuê</label>
                       <input
                         type="text"
                         inputMode="numeric"
-                        placeholder="Nhập giá"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.price ?? 0}
+                        placeholder="0"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={formData.rentalDays ?? 0}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            price: e.target.value === '' ? 0 : parseNumericValue(e.target.value)
+                            rentalDays: e.target.value === '' ? 0 : parseNumericValue(e.target.value)
                           })
                         }
                         onPaste={(e) =>
                           handleMacTextPaste(
                             e,
-                            formData.price,
-                            (val) => setFormData((prev) => ({ ...prev, price: val })),
+                            formData.rentalDays,
+                            (val) => setFormData((prev) => ({ ...prev, rentalDays: val })),
                             { numeric: true }
                           )
                         }
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* Nhóm 4: Chăm sóc & Tiếp thị */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                    Nhóm 4: Chăm sóc &amp; Tiếp thị
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số ngày thuê</label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="0"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          value={formData.rentalDays ?? 0}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              rentalDays: e.target.value === '' ? 0 : parseNumericValue(e.target.value)
-                            })
-                          }
-                          onPaste={(e) =>
-                            handleMacTextPaste(
-                              e,
-                              formData.rentalDays,
-                              (val) => setFormData((prev) => ({ ...prev, rentalDays: val })),
-                              { numeric: true }
-                            )
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          Phương thức thanh toán
-                        </label>
-                        <SearchableSelect
-                          options={PAYMENT_METHOD_OPTIONS}
-                          value={formData.paymentMethod || ''}
-                          placeholder="-- Chọn phương thức --"
-                          onChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nguồn khách hàng</label>
-                        <SearchableSelect
-                          options={CUSTOMER_SOURCE_OPTIONS}
-                          value={formData.customerSource || ''}
-                          placeholder="-- Chọn nguồn --"
-                          onChange={(value) => setFormData({ ...formData, customerSource: value })}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          Khách hàng giới thiệu
-                        </label>
-                        <SearchableSelect
-                          options={referralCustomerOptions.map((customer) => ({
-                            value: customer.id,
-                            label: `${customer.fullName} -- ID: ${customer.id}`
-                          }))}
-                          value={formData.referralCustomerId ?? ''}
-                          placeholder="-- Chọn khách hàng giới thiệu --"
-                          onChange={(value) => setFormData({ ...formData, referralCustomerId: value })}
-                          className="w-full"
-                        />
-                      </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Phương thức thanh toán
+                      </label>
+                      <SearchableSelect
+                        options={PAYMENT_METHOD_OPTIONS}
+                        value={formData.paymentMethod || ''}
+                        placeholder="-- Chọn phương thức --"
+                        onChange={(value) => setFormData({ ...formData, paymentMethod: value })}
+                        className="w-full"
+                      />
                     </div>
-                    <div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nguồn khách hàng</label>
+                      <SearchableSelect
+                        options={CUSTOMER_SOURCE_OPTIONS}
+                        value={formData.customerSource || ''}
+                        placeholder="-- Chọn nguồn --"
+                        onChange={(value) => setFormData({ ...formData, customerSource: value })}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Khách hàng giới thiệu
+                      </label>
+                      <SearchableSelect
+                        options={referralCustomerOptions.map((customer) => ({
+                          value: customer.id,
+                          label: `${customer.fullName} -- ID: ${customer.id}`
+                        }))}
+                        value={formData.referralCustomerId ?? ''}
+                        placeholder="-- Chọn khách hàng giới thiệu --"
+                        onChange={(value) => setFormData({ ...formData, referralCustomerId: value })}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                         Mối quan tâm / Vấn đề
                       </label>
@@ -1233,159 +1320,94 @@ export default function CRMSystem() {
                         placeholder="Nhu cầu khách hàng..."
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                        Khuyến mãi áp dụng
-                      </label>
-                      <div className="flex gap-1.5">
-                        <input
-                          type="text"
-                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs"
-                          placeholder="Nhập tên khuyến mãi rồi ấn Enter..."
-                          value={promoEvent || ''}
-                          onChange={(e) => setPromoEvent(e.target.value)}
-                          onPaste={(e) =>
-                            handleMacTextPaste(e, promoEvent, (val) => setPromoEvent(val))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              if (promoEvent.trim()) {
-                                setFormData({
-                                  ...formData,
-                                  promotions: [...(formData.promotions || []), { event: promoEvent.trim() }]
-                                });
-                              }
-                              setPromoEvent('');
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (promoEvent.trim()) {
-                              setFormData({
-                                ...formData,
-                                promotions: [...(formData.promotions || []), { event: promoEvent.trim() }]
-                              });
-                            }
-                            setPromoEvent('');
-                          }}
-                          className="bg-indigo-50 text-indigo-700 px-3 text-xs font-bold rounded-xl border border-indigo-200"
-                        >
-                          Thêm
-                        </button>
-                      </div>
-                      <div className="mt-1.5 space-y-1">
-                        {(formData.promotions || []).map((p, i) => (
-                          <div
-                            key={i}
-                            className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200"
-                          >
-                            <span>
-                              Sự kiện: <strong className="text-indigo-600">{p.event || ''}</strong>
-                            </span>
-                            <span
-                              className="text-rose-500 font-bold cursor-pointer"
-                              onClick={() =>
-                                setFormData({
-                                  ...formData,
-                                  promotions: formData.promotions.filter((_, idx) => idx !== i)
-                                })
-                              }
-                            >
-                              Gỡ
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                        Phương thức chăm sóc (Chọn nhiều)
-                      </label>
-                      <div className="flex flex-wrap gap-4 bg-white p-3 rounded-xl border border-slate-200">
-                        {CARE_METHODS.map((m) => (
-                          <label key={m.value} className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={(formData.careMethods || []).includes(m.value)}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  careMethods: e.target.checked
-                                    ? [...(formData.careMethods || []), m.value]
-                                    : formData.careMethods.filter((c) => c !== m.value)
-                                })
-                              }
-                              className="rounded text-indigo-600 focus:ring-indigo-500"
-                            />
-                            {m.label}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
                   </div>
-                </div>
 
-                {/* Nhóm 5: Nhân sự phụ trách */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 5: Phân sự nội bộ</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Người bán</label>
-                      <SearchableSelect
-                        options={staffList.map((s) => ({ value: s.fullName, label: s.fullName }))}
-                        value={formData.seller || ''}
-                        placeholder="-- Chọn người bán --"
-                        onChange={(value) => setFormData({ ...formData, seller: value })}
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                        Nhân viên tư vấn
-                      </label>
-                      <SearchableSelect
-                        options={staffList.map((s) => ({ value: s.fullName, label: s.fullName }))}
-                        value={formData.consultant || ''}
-                        placeholder="-- Chọn nhân sự tư vấn --"
-                        onChange={(value) => setFormData({ ...formData, consultant: value })}
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                        Nhân viên chăm sóc
-                      </label>
-                      <SearchableSelect
-                        options={staffList.map((s) => ({ value: s.fullName, label: s.fullName }))}
-                        value={formData.careStaff || ''}
-                        placeholder="-- Chọn nhân sự chăm sóc --"
-                        onChange={(value) => setFormData({ ...formData, careStaff: value })}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Nhóm 6: Trạng thái nhãn gán */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                    Nhóm 6: Trạng thái &amp; Gán nhãn
-                  </h4>
+                  {/* Hàng 2: Phương thức chăm sóc (1 hàng riêng) */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                      Gán nhãn phân cấp
+                      Phương thức chăm sóc (Chọn nhiều)
                     </label>
+                    <div className="flex flex-wrap gap-4 bg-white p-3 rounded-xl border border-slate-200">
+                      {CARE_METHODS.map((m) => (
+                        <label key={m.value} className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(formData.careMethods || []).includes(m.value)}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                careMethods: e.target.checked
+                                  ? [...(formData.careMethods || []), m.value]
+                                  : formData.careMethods.filter((c) => c !== m.value)
+                              })
+                            }
+                            className="rounded text-indigo-600 focus:ring-indigo-500"
+                          />
+                          {m.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nhóm 5: Nhân sự phụ trách */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nhóm 5: Phân sự nội bộ</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Người bán</label>
                     <SearchableSelect
-                      options={LABELS.map((l) => ({ value: l.value, label: l.label }))}
-                      value={formData.label || ''}
-                      placeholder="-- Chọn giai đoạn --"
-                      onChange={(value) => setFormData({ ...formData, label: value })}
+                      options={staffList.map((s) => ({ value: s.fullName, label: s.fullName }))}
+                      value={formData.seller || ''}
+                      placeholder="-- Chọn người bán --"
+                      onChange={(value) => setFormData({ ...formData, seller: value })}
                       className="w-full"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Nhân viên tư vấn
+                    </label>
+                    <SearchableSelect
+                      options={staffList.map((s) => ({ value: s.fullName, label: s.fullName }))}
+                      value={formData.consultant || ''}
+                      placeholder="-- Chọn nhân sự tư vấn --"
+                      onChange={(value) => setFormData({ ...formData, consultant: value })}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Nhân viên chăm sóc
+                    </label>
+                    <SearchableSelect
+                      options={staffList.map((s) => ({ value: s.fullName, label: s.fullName }))}
+                      value={formData.careStaff || ''}
+                      placeholder="-- Chọn nhân sự chăm sóc --"
+                      onChange={(value) => setFormData({ ...formData, careStaff: value })}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Nhóm 6: Trạng thái nhãn gán */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Nhóm 6: Trạng thái &amp; Gán nhãn
+                </h4>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Gán nhãn phân cấp
+                  </label>
+                  <SearchableSelect
+                    options={LABELS.map((l) => ({ value: l.value, label: l.label }))}
+                    value={formData.label || ''}
+                    placeholder="-- Chọn giai đoạn --"
+                    onChange={(value) => setFormData({ ...formData, label: value })}
+                    className="w-full"
+                  />
                 </div>
               </div>
             </div>
@@ -1529,7 +1551,6 @@ export default function CRMSystem() {
                     <th className="px-4 py-3.5 w-64">Kênh liên hệ</th>
                     <th className="px-4 py-3.5 w-40">Tổng số lần mua</th>
                     <th className="px-4 py-3.5 w-44 text-center">Nhãn trạng thái</th>
-                    <th className="px-4 py-3.5 w-44 text-center">Tổng tiền đã mua</th>
                     <th className="px-4 py-3.5 w-32 border-l border-slate-200 bg-indigo-50/20 text-indigo-900">
                       Ngày giao dịch
                     </th>
@@ -1539,6 +1560,7 @@ export default function CRMSystem() {
                     <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Phân loại</th>
                     <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Báo giá</th>
                     <th className="px-4 py-3.5 w-32 bg-indigo-50/20 text-indigo-900">Giá chốt</th>
+                    <th className="px-4 py-3.5 w-44 text-center">Tổng tiền đã mua</th>
                     <th className="px-4 py-3.5 w-28 bg-indigo-50/20 text-indigo-900">ADS</th>
                     <th className="px-4 py-3.5 w-36 bg-rose-50/20 text-rose-900">Công nợ phải thu</th>
                     <th className="px-4 py-3.5 w-28 border-l border-slate-200 bg-sky-50/20 text-sky-900">
@@ -1636,15 +1658,7 @@ export default function CRMSystem() {
                             );
                           })()}
                         </td>
-                        <td className="px-4 py-4 text-center font-bold text-emerald-600 text-sm">
-                          {totalSpentMap[cust.id] !== undefined ? (
-                            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-                              totalSpentMap[cust.id]
-                            )
-                          ) : (
-                            <span className="text-slate-400 font-normal text-xs italic">Đang tải...</span>
-                          )}
-                        </td>
+
                         <td className="px-4 py-4 font-bold text-slate-900 whitespace-nowrap border-l border-slate-200 bg-indigo-50/5">
                           {history.date || '---'}
                         </td>
@@ -1701,6 +1715,15 @@ export default function CRMSystem() {
                             <span className="text-slate-300 italic font-normal">Trống</span>
                           )}
                         </td>
+                        <td className="px-4 py-4 text-center font-bold text-emerald-600 text-sm">
+                          {totalSpentMap[cust.id] !== undefined ? (
+                            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                              totalSpentMap[cust.id]
+                            )
+                          ) : (
+                            <span className="text-slate-400 font-normal text-xs italic">Đang tải...</span>
+                          )}
+                        </td>
                         <td className="px-4 py-4 text-center bg-indigo-50/5">
                           {h?.id ? (
                             <span
@@ -1715,6 +1738,7 @@ export default function CRMSystem() {
                             <span className="text-slate-300 italic">---</span>
                           )}
                         </td>
+
                         <td className="px-3 py-3 bg-rose-50/5">
                           {h?.id ? (
                             <>
