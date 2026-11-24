@@ -229,6 +229,20 @@ export default function ChamSocKhachHangPage() {
         return matchesCareStatus && matchesStaff;
     });
 
+    // Parse ngược chuỗi -> mảng dòng. Không đúng định dạng thì trả về null
+    const parseProductsString = (str) => {
+        const text = String(str || '').trim();
+        if (!text) return [];
+        const re = /^(.*?) \| SL: ([\d.]+) \| ĐG: ([\d.]+) \| TT: [\d.]+$/;
+        const items = [];
+        for (const part of text.split(' ; ')) {
+            const m = part.trim().match(re);
+            if (!m) return null;
+            items.push({ name: m[1], qty: Number(m[2]), price: Number(m[3]) });
+        }
+        return items;
+    };
+
     return (
         <div className="w-full bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 space-y-6">
             <div className="flex items-start justify-between gap-4">
@@ -372,7 +386,50 @@ export default function ChamSocKhachHangPage() {
                                                 <span className="px-2 py-1 rounded bg-slate-100 border text-[11px] font-semibold">{row.label || 'Lạnh'}</span>
                                             </td>
                                             <td className="px-4 py-4 bg-slate-50/30">
-                                                <div className="font-medium text-slate-900">{row.products}</div>
+                                                {(() => {
+                                                    const parsed = parseProductsString(row.products);
+
+                                                    if (!row.products) {
+                                                        return (
+                                                            <span className="text-xs text-slate-400 italic">
+                                                                Chưa có sản phẩm
+                                                            </span>
+                                                        );
+                                                    }
+
+                                                    const productNames =
+                                                        parsed && parsed.length > 0
+                                                            ? parsed.map((p) => p.name).filter(Boolean)
+                                                            : [row.products];
+
+                                                    return (
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            {productNames.slice(0, 3).map((name, index) => (
+                                                                <span
+                                                                    key={`${name}-${index}`}
+                                                                    className="
+                                                                        inline-flex items-center
+                                                                        max-w-[180px] truncate
+                                                                        px-2.5 py-1.5
+                                                                        rounded-lg
+                                                                        bg-white border border-slate-200
+                                                                        text-[11px] font-semibold text-slate-700
+                                                                        shadow-sm
+                                                                        "
+                                                                    title={name}
+                                                                >
+                                                                    {name}
+                                                                </span>
+                                                            ))}
+
+                                                            {productNames.length > 3 && (
+                                                                <span className="px-2 py-1.5 rounded-lg bg-slate-100 text-[10px] font-bold text-slate-500">
+                                                                    +{productNames.length - 3}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                                 <div className="text-[10px] text-slate-400">Ngày: {row.historyDate}</div>
                                             </td>
                                             <td className="px-4 py-4">

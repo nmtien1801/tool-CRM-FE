@@ -156,12 +156,18 @@ export default function BusinessReportPage() {
                 <Building2 className="h-4 w-4 text-indigo-600" />
                 <h2 className="text-sm font-bold text-slate-800">Toàn bộ hệ sinh thái</h2>
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                   label="Tổng doanh thu"
                   value={overall.revenue}
                   icon={TrendingUp}
                   tone="bg-emerald-50 text-emerald-600"
+                />
+                <MetricCard
+                  label="Tổng tiền chiết khấu"
+                  value={overall.totalDiscount}
+                  icon={CircleDollarSign}
+                  tone="bg-rose-50 text-rose-600"
                 />
                 <MetricCard
                   label="Tổng chi phí"

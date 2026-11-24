@@ -74,6 +74,12 @@ const parseProductsString = (str) => {
   return items;
 };
 
+const getProductsTotal = (products) =>
+  (parseProductsString(products) || []).reduce(
+    (sum, item) => sum + parseNumericValue(item.qty) * parseNumericValue(item.price),
+    0
+  );
+
 export default function CRMSystem() {
   const { user } = useAuth();
 
@@ -438,6 +444,9 @@ export default function CRMSystem() {
     }
     setFormError('');
 
+    const salePrice = getProductsTotal(cleanProduct);
+    const discountAmount = getPromotionAmount(formData.promotions);
+
     const parsedReferralId =
       formData.referralCustomerId !== '' &&
         formData.referralCustomerId !== null &&
@@ -459,8 +468,8 @@ export default function CRMSystem() {
       careStaff: formData.careStaff || '',
       category: formData.category || '',
       itemType: formData.itemType || '',
-      quote: formData.quote || '',
-      price: parseNumericValue(formData.price),
+      quote: formatVND(salePrice),
+      price: salePrice - discountAmount,
       receivableDebt: parseNumericValue(formData.receivableDebt),
       rentalDays: Number(formData.rentalDays) || 0,
       paymentMethod: formData.paymentMethod || '',
@@ -897,6 +906,9 @@ export default function CRMSystem() {
   const customCareMethods = (formData.careMethods || []).filter(
     (m) => !CARE_METHODS.includes(m)
   );
+  const productTotal = getProductsTotal(formData.products);
+  const discountAmount = getPromotionAmount(formData.promotions);
+  const closingPrice = productTotal - discountAmount;
 
   const handleAddCustomCareMethod = () => {
     const value = customCareMethod.trim();
@@ -955,8 +967,8 @@ export default function CRMSystem() {
     setFormData((prev) => ({
       ...prev,
       products: str,
-      // Tự điền Giá chốt = tổng thành tiền (có thể sửa lại sau)
-      price: str ? productGrandTotal : prev.price
+      quote: formatVND(productGrandTotal),
+      price: productGrandTotal - getPromotionAmount(prev.promotions)
     }));
     setShowProductModal(false);
   };
@@ -1256,15 +1268,10 @@ export default function CRMSystem() {
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
                     <input
                       type="text"
-                      placeholder="Nhập báo giá"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.quote || ''}
-                      onChange={(e) => setFormData({ ...formData, quote: e.target.value })}
-                      onPaste={(e) =>
-                        handleMacTextPaste(e, formData.quote, (val) =>
-                          setFormData((prev) => ({ ...prev, quote: val }))
-                        )
-                      }
+                      title="Tự động tính bằng tổng tiền sản phẩm"
+                      className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600"
+                      value={formatVND(productTotal)}
+                      readOnly
                     />
                   </div>
 
@@ -1272,24 +1279,10 @@ export default function CRMSystem() {
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá chốt</label>
                     <input
                       type="text"
-                      inputMode="numeric"
-                      placeholder="Nhập giá"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.price ?? 0}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          price: e.target.value === '' ? 0 : parseNumericValue(e.target.value)
-                        })
-                      }
-                      onPaste={(e) =>
-                        handleMacTextPaste(
-                          e,
-                          formData.price,
-                          (val) => setFormData((prev) => ({ ...prev, price: val })),
-                          { numeric: true }
-                        )
-                      }
+                      title="Tự động tính bằng giá bán trừ chiết khấu"
+                      className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600"
+                      value={formatVND(closingPrice)}
+                      readOnly
                     />
                   </div>
 
