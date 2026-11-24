@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2, Lock, UserPlus, Edit, Trash2, Copy } from 'lucide-react';
+import { Loader2, Lock, UserPlus, Edit, Trash2, Copy, Eye } from 'lucide-react';
 import ExpandableInput from '../components/ExpandableInput';
 import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/CRM/ConfirmModal';
@@ -33,6 +33,45 @@ const parseNumericValue = (val) => {
   const cleaned = String(val ?? '').replace(/[^\d.-]/g, '');
   const num = Number(cleaned);
   return Number.isFinite(num) ? num : 0;
+};
+
+const formatVND = (n) => new Intl.NumberFormat('vi-VN').format(Number(n) || 0);
+
+// Lấy số tiền khuyến mãi từ mảng promotions (cộng dồn nếu dữ liệu cũ có nhiều dòng)
+const getPromotionAmount = (promotions) =>
+  (Array.isArray(promotions) ? promotions : []).reduce(
+    (sum, p) => sum + parseNumericValue(p?.event),
+    0
+  );
+
+// Bỏ ký tự phân cách để không phá định dạng chuỗi
+const sanitizeProductName = (s) =>
+  String(s || '').replace(/[;|]/g, ' ').replace(/\s+/g, ' ').trim();
+
+const EMPTY_PRODUCT_ITEM = { name: '', price: 0, qty: 1 };
+
+const buildProductsString = (items) =>
+  items
+    .filter((i) => sanitizeProductName(i.name))
+    .map((i) => {
+      const qty = parseNumericValue(i.qty);
+      const price = parseNumericValue(i.price);
+      return `${sanitizeProductName(i.name)} | SL: ${qty} | ĐG: ${price} | TT: ${qty * price}`;
+    })
+    .join(' ; ');
+
+// Parse ngược chuỗi -> mảng dòng. Không đúng định dạng thì trả về null
+const parseProductsString = (str) => {
+  const text = String(str || '').trim();
+  if (!text) return [];
+  const re = /^(.*?) \| SL: ([\d.]+) \| ĐG: ([\d.]+) \| TT: [\d.]+$/;
+  const items = [];
+  for (const part of text.split(' ; ')) {
+    const m = part.trim().match(re);
+    if (!m) return null;
+    items.push({ name: m[1], qty: Number(m[2]), price: Number(m[3]) });
+  }
+  return items;
 };
 
 export default function CRMSystem() {
@@ -85,8 +124,10 @@ export default function CRMSystem() {
     seller: '',
     ads: false
   });
-  const [promoEvent, setPromoEvent] = useState('');
   const [customCareMethod, setCustomCareMethod] = useState('');
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [productItems, setProductItems] = useState([{ ...EMPTY_PRODUCT_ITEM }]);
+  const [viewProducts, setViewProducts] = useState(null);
 
   // --- BỘ LỌC VÀ PHÂN TRANG ---
   const [crmSearch, setCrmSearch] = useState('');
@@ -410,7 +451,10 @@ export default function CRMSystem() {
       invoiceLink: formData.invoiceLink || '',
       issue: formData.issue || '',
       careMethods: Array.isArray(formData.careMethods) ? formData.careMethods : [],
-      promotions: Array.isArray(formData.promotions) ? formData.promotions : [],
+      promotions: (() => {
+        const amount = getPromotionAmount(formData.promotions);
+        return amount > 0 ? [{ event: String(amount) }] : [];
+      })(),
       consultant: formData.consultant || '',
       careStaff: formData.careStaff || '',
       category: formData.category || '',
@@ -870,6 +914,53 @@ export default function CRMSystem() {
     setCustomCareMethod('');
   };
 
+  const handleOpenProductModal = () => {
+    const parsed = parseProductsString(formData.products);
+    if (parsed && parsed.length > 0) {
+      setProductItems(parsed);
+    } else if (formData.products?.trim()) {
+      // Chuỗi nhập tay cũ -> đưa vào 1 dòng để người dùng bổ sung giá/SL
+      setProductItems([{ name: formData.products.trim(), price: 0, qty: 1 }]);
+    } else {
+      setProductItems([{ ...EMPTY_PRODUCT_ITEM }]);
+    }
+    setShowProductModal(true);
+  };
+
+  const handleProductItemChange = (index, field, value) => {
+    setProductItems((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? { ...item, [field]: field === 'name' ? value : parseNumericValue(value) }
+          : item
+      )
+    );
+  };
+
+  const handleAddProductItem = () =>
+    setProductItems((prev) => [...prev, { ...EMPTY_PRODUCT_ITEM }]);
+
+  const handleRemoveProductItem = (index) =>
+    setProductItems((prev) =>
+      prev.length === 1 ? [{ ...EMPTY_PRODUCT_ITEM }] : prev.filter((_, i) => i !== index)
+    );
+
+  const productGrandTotal = productItems.reduce(
+    (sum, i) => sum + parseNumericValue(i.qty) * parseNumericValue(i.price),
+    0
+  );
+
+  const handleApplyProducts = () => {
+    const str = buildProductsString(productItems);
+    setFormData((prev) => ({
+      ...prev,
+      products: str,
+      // Tự điền Giá chốt = tổng thành tiền (có thể sửa lại sau)
+      price: str ? productGrandTotal : prev.price
+    }));
+    setShowProductModal(false);
+  };
+
   const handleRemoveCustomCareMethod = (method) => {
     setFormData((prev) => ({
       ...prev,
@@ -903,7 +994,7 @@ export default function CRMSystem() {
       );
     }
   );
-  
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 antialiased font-sans">
       <main className="max-w-[1600px] mx-auto px-4 py-8 space-y-8">
@@ -1061,8 +1152,8 @@ export default function CRMSystem() {
                   Nhóm 3: Chi tiết đơn hàng
                 </h4>
 
-                {/* Hàng 1 (10 cột): Tổng lần mua (2) - Ngày mua (2) - Tên sản phẩm (3) - Hóa đơn URL (3) */}
-                <div className="grid grid-cols-1 md:grid-cols-10 gap-3 items-end">
+                {/* Dòng 1 (12 cột): Tổng lần mua (2) - Ngày mua (2) - Tên SP/DV (2) - Hóa đơn URL (3) - Hạng mục (2) - Ads (1) */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
                   <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                       Tổng số lần đã mua hàng
@@ -1075,6 +1166,7 @@ export default function CRMSystem() {
                       disabled
                     />
                   </div>
+
                   <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                       Ngày mua hàng
@@ -1086,23 +1178,21 @@ export default function CRMSystem() {
                       onChange={(e) => setFormData({ ...formData, singleDate: e.target.value })}
                     />
                   </div>
-                  <div className="md:col-span-3">
+
+                  <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                      Tên sản phẩm dịch vụ *
+                      Sản phẩm dịch vụ *
                     </label>
-                    <input
-                      type="text"
-                      placeholder="Tên sản phẩm dịch vụ"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.products || ''}
-                      onChange={(e) => setFormData({ ...formData, products: e.target.value })}
-                      onPaste={(e) =>
-                        handleMacTextPaste(e, formData.products, (val) =>
-                          setFormData((prev) => ({ ...prev, products: val }))
-                        )
-                      }
-                    />
+                    <button
+                      type="button"
+                      onClick={handleOpenProductModal}
+                      className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-2 text-xs font-bold rounded-xl border border-indigo-200 transition-colors truncate"
+                      title="Nhập danh sách sản phẩm chi tiết"
+                    >
+                      Xem chi tiết
+                    </button>
                   </div>
+
                   <div className="md:col-span-3">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                       Hóa đơn đầu ra (url)
@@ -1120,12 +1210,11 @@ export default function CRMSystem() {
                       }
                     />
                   </div>
-                </div>
 
-                {/* Hàng 2 (10 cột): Hạng mục (2) - Phân loại (2) - Báo giá (2) - Giá chốt (2) - Công nợ (1) - Ads (1) */}
-                <div className="grid grid-cols-1 md:grid-cols-10 gap-3 pt-1 items-end">
                   <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hạng mục</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Hạng mục
+                    </label>
                     <SearchableSelect
                       options={
                         formData.category && !CATEGORY_OPTIONS.some((opt) => opt.value === formData.category)
@@ -1138,6 +1227,20 @@ export default function CRMSystem() {
                       className="w-full"
                     />
                   </div>
+
+                  <div className="md:col-span-1 flex flex-col items-center justify-center pt-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Ads</label>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.ads)}
+                      onChange={(e) => setFormData({ ...formData, ads: e.target.checked })}
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Dòng 2 (12 cột): Phân loại (2) - Báo giá (2) - Giá chốt (2) - Công nợ (2) - Khuyến mãi (4) */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1 items-start">
                   <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Phân loại</label>
                     <SearchableSelect
@@ -1148,6 +1251,7 @@ export default function CRMSystem() {
                       className="w-full"
                     />
                   </div>
+
                   <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Báo giá</label>
                     <input
@@ -1163,6 +1267,7 @@ export default function CRMSystem() {
                       }
                     />
                   </div>
+
                   <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Giá chốt</label>
                     <input
@@ -1187,13 +1292,14 @@ export default function CRMSystem() {
                       }
                     />
                   </div>
-                  <div className="md:col-span-1">
+
+                  <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-rose-600 uppercase mb-1">Công nợ</label>
                     <input
                       type="text"
                       inputMode="numeric"
                       placeholder="0"
-                      className="w-full bg-white border border-rose-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                      className="w-full bg-white border border-rose-200 rounded-xl px-3 py-2 text-xs font-semibold text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-400"
                       value={formData.receivableDebt ?? 0}
                       onChange={(e) =>
                         setFormData({
@@ -1211,85 +1317,38 @@ export default function CRMSystem() {
                       }
                     />
                   </div>
-                  <div className="md:col-span-1 flex flex-col items-center justify-center pb-1.5">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Ads</label>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(formData.ads)}
-                      onChange={(e) => setFormData({ ...formData, ads: e.target.checked })}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                    />
-                  </div>
-                </div>
 
-                {/* Hàng 3 (10 cột): Khuyến mãi áp dụng (5 cột) */}
-                <div className="grid grid-cols-1 md:grid-cols-10 gap-3 pt-1">
-                  <div className="md:col-span-5">
+                  <div className="md:col-span-4">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                      Khuyến mãi áp dụng
+                      Chiết khấu (VNĐ)
                     </label>
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Nhập tên khuyến mãi rồi ấn Enter..."
-                        value={promoEvent || ''}
-                        onChange={(e) => setPromoEvent(e.target.value)}
-                        onPaste={(e) =>
-                          handleMacTextPaste(e, promoEvent, (val) => setPromoEvent(val))
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (promoEvent.trim()) {
-                              setFormData({
-                                ...formData,
-                                promotions: [...(formData.promotions || []), { event: promoEvent.trim() }]
-                              });
-                            }
-                            setPromoEvent('');
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (promoEvent.trim()) {
-                            setFormData({
-                              ...formData,
-                              promotions: [...(formData.promotions || []), { event: promoEvent.trim() }]
-                            });
-                          }
-                          setPromoEvent('');
-                        }}
-                        className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 text-xs font-bold rounded-xl border border-indigo-200 transition-colors"
-                      >
-                        Thêm
-                      </button>
-                    </div>
-                    <div className="mt-1.5 space-y-1">
-                      {(formData.promotions || []).map((p, i) => (
-                        <div
-                          key={i}
-                          className="text-[10px] bg-white p-2 rounded-lg flex justify-between items-center border border-slate-200"
-                        >
-                          <span>
-                            Sự kiện: <strong className="text-indigo-600">{p.event || ''}</strong>
-                          </span>
-                          <span
-                            className="text-rose-500 font-bold cursor-pointer hover:underline"
-                            onClick={() =>
-                              setFormData({
-                                ...formData,
-                                promotions: formData.promotions.filter((_, idx) => idx !== i)
-                              })
-                            }
-                          >
-                            Gỡ
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Nhập số tiền chiết khấu"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={
+                        getPromotionAmount(formData.promotions) > 0
+                          ? formatVND(getPromotionAmount(formData.promotions))
+                          : ''
+                      }
+                      onChange={(e) => {
+                        const amount = parseNumericValue(e.target.value.replace(/\./g, ''));
+                        setFormData({
+                          ...formData,
+                          promotions: amount > 0 ? [{ event: String(amount) }] : []
+                        });
+                      }}
+                      onPaste={(e) =>
+                        handleMacTextPaste(e, '', (val) => {
+                          const amount = parseNumericValue(String(val).replace(/\./g, ''));
+                          setFormData((prev) => ({
+                            ...prev,
+                            promotions: amount > 0 ? [{ event: String(amount) }] : []
+                          }));
+                        })
+                      }
+                    />
                   </div>
                 </div>
               </div>
@@ -1701,7 +1760,7 @@ export default function CRMSystem() {
                     <th className="px-4 py-3.5 w-64 border-l border-slate-200 bg-amber-50/20 text-amber-900">
                       Mối quan tâm
                     </th>
-                    <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Quà tặng áp dụng</th>
+                    <th className="px-4 py-3.5 w-56 bg-amber-50/20 text-amber-900">Chiết khấu</th>
                     <th className="px-4 py-3.5 w-48 bg-amber-50/20 text-amber-900">Kênh tiếp cận</th>
                     <th className="px-4 py-3.5 w-44 border-l border-slate-200 bg-emerald-50/20 text-emerald-900">
                       Người bán
@@ -1791,9 +1850,77 @@ export default function CRMSystem() {
                         <td className="px-4 py-4 font-bold text-slate-900 whitespace-nowrap border-l border-slate-200 bg-indigo-50/5">
                           {history.date || '---'}
                         </td>
-                        <td className="px-4 py-4 text-slate-800 font-bold leading-relaxed break-words bg-indigo-50/5">
-                          {history.products || '---'}
+                        <td className="px-4 py-3.5 text-slate-700 bg-indigo-50/[0.03]">
+                          {(() => {
+                            const parsed = parseProductsString(history.products);
+
+                            if (!history.products) {
+                              return (
+                                <span className="text-xs text-slate-400 italic">
+                                  Chưa có sản phẩm
+                                </span>
+                              );
+                            }
+
+                            const productNames =
+                              parsed && parsed.length > 0
+                                ? parsed.map((p) => p.name).filter(Boolean)
+                                : [history.products];
+
+                            return (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {productNames.slice(0, 3).map((name, index) => (
+                                  <span
+                                    key={`${name}-${index}`}
+                                    className="
+                                      inline-flex items-center
+                                      max-w-[180px] truncate
+                                      px-2.5 py-1.5
+                                      rounded-lg
+                                      bg-white border border-slate-200
+                                      text-[11px] font-semibold text-slate-700
+                                      shadow-sm
+                                    "
+                                    title={name}
+                                  >
+                                    {name}
+                                  </span>
+                                ))}
+
+                                {productNames.length > 3 && (
+                                  <span className="px-2 py-1.5 rounded-lg bg-slate-100 text-[10px] font-bold text-slate-500">
+                                    +{productNames.length - 3}
+                                  </span>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setViewProducts({
+                                      customerName: cust.fullName,
+                                      raw: history.products,
+                                    })
+                                  }
+                                  className="
+                                    inline-flex items-center justify-center gap-1.5
+                                    px-2.5 py-1.5 ml-1
+                                    rounded-lg
+                                    text-[11px] font-semibold text-indigo-600
+                                    bg-indigo-50 hover:bg-indigo-100
+                                    border border-indigo-100
+                                    transition-all duration-200
+                                    whitespace-nowrap
+                                  "
+                                  title="Xem chi tiết sản phẩm"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  Đơn giá | SL
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </td>
+
 
                         <td className="px-4 py-4 text-center whitespace-nowrap bg-indigo-50/5">
                           {history.invoiceLink ? (
@@ -1943,26 +2070,33 @@ export default function CRMSystem() {
                         <td className="px-4 py-4 text-slate-700 font-medium leading-relaxed break-words border-l border-slate-200 bg-amber-50/5">
                           {history.issue || customer.issue || <span className="text-slate-400 italic">Chưa ghi nhận</span>}
                         </td>
-                        <td className="px-4 py-4 text-slate-600 leading-relaxed break-words bg-amber-50/5">
-                          {history.promotions && history.promotions.length > 0 ? (
-                            history.promotions.map((p, idx) => (
-                              <div key={idx} className="mb-1.5 last:mb-0">
+                        <td className="px-4 py-4 text-slate-600 bg-amber-50/5">
+                          {(() => {
+                            const promos =
+                              history.promotions && history.promotions.length > 0
+                                ? history.promotions
+                                : customer.promotions || [];
+                            const amount = getPromotionAmount(promos);
+
+                            if (amount > 0) {
+                              return (
                                 <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-block">
-                                  {p.event}
+                                  {formatVND(amount)} đ
                                 </span>
-                              </div>
-                            ))
-                          ) : customer.promotions && customer.promotions.length > 0 ? (
-                            customer.promotions.map((p, idx) => (
-                              <div key={idx} className="mb-1.5 last:mb-0">
-                                <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-block">
-                                  {p.event}
-                                </span>
-                              </div>
-                            ))
-                          ) : (
-                            <span className="text-slate-400 italic">Không áp dụng</span>
-                          )}
+                              );
+                            }
+                            // Dữ liệu cũ dạng chữ -> hiển thị nguyên văn
+                            if (promos.length > 0) {
+                              return promos.map((p, idx) => (
+                                <div key={idx} className="mb-1.5 last:mb-0">
+                                  <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-block">
+                                    {p.event}
+                                  </span>
+                                </div>
+                              ));
+                            }
+                            return <span className="text-slate-400 italic">Không áp dụng</span>;
+                          })()}
                         </td>
                         <td className="px-4 py-4 bg-amber-50/5">
                           <div className="flex flex-wrap gap-1">
@@ -2078,6 +2212,206 @@ export default function CRMSystem() {
         onConfirm={() => confirmState?.onConfirm()}
         onCancel={() => setConfirmState(null)}
       />
+
+      {viewProducts && (() => {
+        const items = parseProductsString(viewProducts.raw);
+        const total = (items || []).reduce((s, i) => s + i.qty * i.price, 0);
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+            onClick={() => setViewProducts(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider">
+                    Chi tiết sản phẩm / dịch vụ
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Khách hàng: <strong>{viewProducts.customerName}</strong>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewProducts(null)}
+                  className="text-slate-400 hover:text-rose-500 text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="p-5 overflow-auto">
+                {items && items.length > 0 ? (
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-bold text-slate-600 uppercase">
+                        <th className="px-2 py-2 text-left">Tên sản phẩm</th>
+                        <th className="px-2 py-2 text-right w-28">Đơn giá</th>
+                        <th className="px-2 py-2 text-right w-16">SL</th>
+                        <th className="px-2 py-2 text-right w-32">Thành tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {items.map((item, i) => (
+                        <tr key={i}>
+                          <td className="px-2 py-2 font-semibold text-slate-800 break-words">{item.name}</td>
+                          <td className="px-2 py-2 text-right">{formatVND(item.price)}</td>
+                          <td className="px-2 py-2 text-right">{item.qty}</td>
+                          <td className="px-2 py-2 text-right font-bold">{formatVND(item.qty * item.price)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-200">
+                        <td colSpan={3} className="px-2 py-2 text-right text-[11px] font-bold text-slate-600 uppercase">
+                          Tổng cộng
+                        </td>
+                        <td className="px-2 py-2 text-right font-bold text-emerald-600 text-sm">
+                          {formatVND(total)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                ) : (
+                  // Dữ liệu cũ nhập tay (không đúng định dạng) -> hiện nguyên văn
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">
+                    {viewProducts.raw}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end px-5 py-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setViewProducts(null)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-4 py-2 rounded-xl"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showProductModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider">
+                Danh sách sản phẩm / dịch vụ
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowProductModal(false)}
+                className="text-slate-400 hover:text-rose-500 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-5 overflow-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-[10px] font-bold text-slate-600 uppercase">
+                    <th className="px-2 py-2 text-left">Tên sản phẩm</th>
+                    <th className="px-2 py-2 text-right w-32">Đơn giá</th>
+                    <th className="px-2 py-2 text-right w-20">SL</th>
+                    <th className="px-2 py-2 text-right w-36">Thành tiền</th>
+                    <th className="px-2 py-2 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {productItems.map((item, index) => (
+                    <tr key={index}>
+                      <td className="px-2 py-2">
+                        <input
+                          type="text"
+                          value={item.name}
+                          placeholder="Tên sản phẩm"
+                          onChange={(e) => handleProductItemChange(index, 'name', e.target.value)}
+                          className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={item.price}
+                          onChange={(e) => handleProductItemChange(index, 'price', e.target.value)}
+                          className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={item.qty}
+                          onChange={(e) => handleProductItemChange(index, 'qty', e.target.value)}
+                          className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-right font-bold text-slate-800">
+                        {formatVND(parseNumericValue(item.qty) * parseNumericValue(item.price))}
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveProductItem(index)}
+                          className="text-rose-500 hover:text-rose-700"
+                          title="Xóa dòng"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-200">
+                    <td colSpan={3} className="px-2 py-2 text-right text-[11px] font-bold text-slate-600 uppercase">
+                      Tổng cộng
+                    </td>
+                    <td className="px-2 py-2 text-right font-bold text-emerald-600 text-sm">
+                      {formatVND(productGrandTotal)}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              <button
+                type="button"
+                onClick={handleAddProductItem}
+                className="mt-3 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 text-xs font-bold rounded-xl"
+              >
+                + Thêm dòng
+              </button>
+            </div>
+
+            <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowProductModal(false)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-4 py-2 rounded-xl"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyProducts}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl"
+              >
+                Áp dụng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

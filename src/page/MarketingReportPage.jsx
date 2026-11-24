@@ -107,6 +107,7 @@ export default function MarketingReportPage() {
         label,
         ads: ads ? "true" : "",
       });
+
       if (response?.EC !== 0) throw new Error(response?.EM || "Không thể tải báo cáo.");
       setReport(response.DT);
     } catch (loadError) {
