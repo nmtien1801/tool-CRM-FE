@@ -8,7 +8,7 @@ import ApiCustomer from '../api/ApiCustomer';
 import ApiAuth from '../api/ApiAuth';
 import ApiPurchaseHistory from '../api/ApiPurchaseHistory';
 import { useAuth } from '../context/AuthContext';
-import { LABELS, ECOSYSTEM_OPTIONS } from './CRM';
+import { LABELS, ECOSYSTEM_OPTIONS, CARE_STATUS_OPTIONS } from './CRM';
 import { getBirthdayCustomers } from './ThongBao';
 
 export default function ChamSocKhachHangPage() {
@@ -158,7 +158,8 @@ export default function ChamSocKhachHangPage() {
             invoiceLink: rowData.invoiceLink ?? row?.invoiceLink ?? '',
             date: rowData.historyDate ?? row?.historyDate ?? '',
             behaviorMetric: rowData.behaviorMetric ?? row?.behaviorMetric ?? '',
-            isCared: rowData.isCared ?? row?.isCared ?? false
+            isCared: rowData.isCared ?? row?.isCared ?? false,
+            statusCare: rowData.statusCare ?? row?.statusCare ?? ''
         };
 
         try {
@@ -196,6 +197,7 @@ export default function ChamSocKhachHangPage() {
                     careStaff: history.careStaff || '',
                     issue: history.issue || '',
                     behaviorMetric: history.behaviorMetric || '',
+                    statusCare: history.statusCare || '',
                     isCared: history.isCared ?? Boolean(history.issue || history.careStaff || history.careMethods?.length)
                 });
             });
@@ -210,6 +212,7 @@ export default function ChamSocKhachHangPage() {
                 careStaff: '',
                 issue: '',
                 behaviorMetric: '',
+                statusCare: '',
                 isCared: false
             });
         }
@@ -217,11 +220,12 @@ export default function ChamSocKhachHangPage() {
 
     const filteredRows = allRowItems.filter(row => {
         const currentState = careStates[row.historyId] || {};
-        const isCaredNow = currentState.isCared ?? row.isCared;
-        let matchesCareStatus = true;
-        if (filterCareStatus === 'cared') matchesCareStatus = isCaredNow === true;
-        if (filterCareStatus === 'not_cared') matchesCareStatus = isCaredNow === false;
+        const currentStatus = currentState.statusCare ?? row.statusCare;
+
+        const matchesCareStatus =
+            filterCareStatus === 'all' || currentStatus === filterCareStatus;
         const matchesStaff = filterStaff === '' || row.careStaff === filterStaff;
+
         return matchesCareStatus && matchesStaff;
     });
 
@@ -287,8 +291,11 @@ export default function ChamSocKhachHangPage() {
                     <SearchableSelect
                         options={[
                             { value: 'all', label: 'Tất cả trạng thái' },
-                            { value: 'cared', label: 'Đã chăm sóc' },
-                            { value: 'not_cared', label: 'Chưa chăm sóc' }
+                            { value: 'received', label: 'Đã tiếp nhận' },
+                            { value: 'consulting', label: 'Đang tư vấn' },
+                            { value: 'completed', label: 'Đã hoàn thành' },
+                            { value: 'stage_transferred', label: 'Chuyển giai đoạn' },
+                            { value: 'follow_up', label: 'Follow up' }
                         ]}
                         value={filterCareStatus}
                         onChange={(value) => setFilterCareStatus(value)}
@@ -326,23 +333,23 @@ export default function ChamSocKhachHangPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                                <th className="px-4 py-3 min-w-[240px]">Thông tin cơ bản</th>
-                                <th className="px-4 py-3 min-w-[240px]">Kênh liên hệ</th>
-                                <th className="px-4 py-3 min-w-[180px]">Phương thức CS</th>
-                                <th className="px-4 py-3 min-w-[140px]">Giai đoạn</th>
-                                <th className="px-4 py-3 min-w-[220px]">Sản phẩm/Dịch vụ</th>
-                                <th className="px-4 py-3 min-w-[220px]">Nội dung CS</th>
-                                <th className="px-4 py-3 min-w-[200px]">Hành vi đo lường</th>
-                                <th className="px-4 py-3 min-w-[160px]">Nhân viên CSKH</th>
-                                <th className="px-4 py-3 text-center w-24">Trạng thái</th>
-                                <th className="px-4 py-3 text-center w-20 sticky right-0 bg-slate-100">Thao tác</th>
+                                <th className="px-3 py-2.5 text-left min-w-[180px]">Thông tin cơ bản</th>
+                                <th className="px-3 py-2.5 text-left min-w-[170px]">Kênh liên hệ</th>
+                                <th className="px-3 py-2.5 text-left min-w-[150px]">Phương thức CS</th>
+                                <th className="px-3 py-2.5 text-left min-w-[150px]">Giai đoạn</th>
+                                <th className="px-3 py-2.5 text-left min-w-[190px]">Sản phẩm/Dịch vụ</th>
+                                <th className="px-3 py-2.5 text-left min-w-[200px]">Nội dung CS</th>
+                                <th className="px-3 py-2.5 text-left min-w-[170px]">Hành vi đo lường</th>
+                                <th className="px-3 py-2.5 text-left min-w-[150px]">Nhân viên CSKH</th>
+                                <th className="px-3 py-2.5 text-center min-w-[130px]">Trạng thái</th>
+                                <th className="px-3 py-2.5 text-center min-w-[96px] sticky right-0 z-10 bg-slate-100 shadow-[-4px_0_8px_-4px_rgba(15,23,42,0.08)]">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 text-xs">
                             {filteredRows.length > 0 ? (
                                 filteredRows.map((row) => {
                                     const currentState = careStates[row.historyId] || {};
-                                    const isChecked = currentState.isCared ?? row.isCared;
+                                    const currentStatus = currentState.statusCare ?? row.statusCare ?? '';
                                     return (
                                         <tr key={row.historyId} className="hover:bg-slate-50/60 transition-colors">
                                             <td className="px-4 py-4 space-y-1 bg-slate-50/30">
@@ -388,12 +395,17 @@ export default function ChamSocKhachHangPage() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-4 text-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isChecked}
-                                                    onChange={(e) => handleInputChange(row.historyId, 'isCared', e.target.checked)}
-                                                    className="w-4 h-4 text-indigo-600 rounded"
-                                                />
+                                                <select
+                                                    value={currentStatus}
+                                                    disabled={String(row.historyId).startsWith('empty-')}
+                                                    onChange={(e) => handleInputChange(row.historyId, 'statusCare', e.target.value)}
+                                                    className="w-full min-w-[130px] px-2 py-1.5 text-[11px] font-semibold border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
+                                                >
+                                                    <option value="">-- Chọn --</option>
+                                                    {CARE_STATUS_OPTIONS.map((opt) => (
+                                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                    ))}
+                                                </select>
                                             </td>
                                             <td className="px-4 py-4 text-center sticky right-0 bg-white">
                                                 <button

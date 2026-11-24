@@ -86,6 +86,7 @@ export default function CRMSystem() {
     ads: false
   });
   const [promoEvent, setPromoEvent] = useState('');
+  const [customCareMethod, setCustomCareMethod] = useState('');
 
   // --- BỘ LỌC VÀ PHÂN TRANG ---
   const [crmSearch, setCrmSearch] = useState('');
@@ -372,6 +373,7 @@ export default function CRMSystem() {
       seller: '',
       ads: false
     });
+    setCustomCareMethod('');
     setEditingId(null);
     setEditingHistoryId(null);
     setFormError('');
@@ -847,10 +849,61 @@ export default function CRMSystem() {
     );
   }
 
+  // Các phương thức nhập tay = những phần tử không nằm trong CARE_METHODS
+  const customCareMethods = (formData.careMethods || []).filter(
+    (m) => !CARE_METHODS.includes(m)
+  );
+
+  const handleAddCustomCareMethod = () => {
+    const value = customCareMethod.trim();
+    if (!value) return;
+
+    const exists = (formData.careMethods || []).some(
+      (m) => normalizeDuplicateText(m) === normalizeDuplicateText(value)
+    );
+    if (!exists) {
+      setFormData((prev) => ({
+        ...prev,
+        careMethods: [...(prev.careMethods || []), value]
+      }));
+    }
+    setCustomCareMethod('');
+  };
+
+  const handleRemoveCustomCareMethod = (method) => {
+    setFormData((prev) => ({
+      ...prev,
+      careMethods: (prev.careMethods || []).filter((m) => m !== method)
+    }));
+  };
+
   const referralCustomerOptions = (referralOptionsList || []).filter(
     (customer) => String(customer.id) !== String(editingId)
   );
 
+  const normalizeCareMethod = (value) =>
+    (value || "").trim().toLowerCase();
+
+  const defaultCareMethodValues = new Set(
+    CARE_METHODS.map((m) => normalizeCareMethod(m.value))
+  );
+
+  const uniqueCustomCareMethods = (customCareMethods || []).filter(
+    (method, index, arr) => {
+      const normalized = normalizeCareMethod(method);
+
+      // Không hiển thị nếu trùng checkbox mặc định
+      if (defaultCareMethodValues.has(normalized)) return false;
+
+      // Không hiển thị nếu bị trùng trong danh sách custom
+      return (
+        arr.findIndex(
+          (item) => normalizeCareMethod(item) === normalized
+        ) === index
+      );
+    }
+  );
+  
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 antialiased font-sans">
       <main className="max-w-[1600px] mx-auto px-4 py-8 space-y-8">
@@ -1322,32 +1375,108 @@ export default function CRMSystem() {
                     </div>
                   </div>
 
-                  {/* Hàng 2: Phương thức chăm sóc (1 hàng riêng) */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                      Phương thức chăm sóc (Chọn nhiều)
-                    </label>
-                    <div className="flex flex-wrap gap-4 bg-white p-3 rounded-xl border border-slate-200">
-                      {CARE_METHODS.map((m) => (
-                        <label key={m.value} className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={(formData.careMethods || []).includes(m.value)}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                careMethods: e.target.checked
-                                  ? [...(formData.careMethods || []), m.value]
-                                  : formData.careMethods.filter((c) => c !== m.value)
-                              })
+
+                  {/* Phương thức chăm sóc - Một hàng ngang */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                        Phương thức chăm sóc
+                      </label>
+                      <span className="text-[11px] text-slate-400">
+                        Chọn nhiều phương thức
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl">
+
+                      {/* Các phương thức có sẵn */}
+                      {CARE_METHODS.map((m) => {
+                        const isSelected = (formData.careMethods || []).includes(m.value);
+
+                        return (
+                          <label
+                            key={m.value}
+                            className={`
+            inline-flex items-center gap-2 px-3 py-2
+            rounded-lg border cursor-pointer
+            transition-all duration-200 whitespace-nowrap
+            ${isSelected
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                : "bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100"
+                              }
+          `}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  careMethods: e.target.checked
+                                    ? [...(formData.careMethods || []), m.value]
+                                    : (formData.careMethods || []).filter(
+                                      (c) => c !== m.value
+                                    )
+                                })
+                              }
+                              className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-xs font-semibold">{m.label}</span>
+                          </label>
+                        );
+                      })}
+
+                      {/* Ô nhập phương thức khác */}
+                      <div className="flex items-center gap-1.5 min-w-[190px] flex-1 max-w-[270px] px-2.5 py-1.5 rounded-lg bg-slate-50 border border-dashed border-slate-300 focus-within:border-indigo-400 focus-within:bg-indigo-50/30 transition-all">
+                        <span className="text-slate-400 text-sm">+</span>
+
+                        <input
+                          type="text"
+                          value={customCareMethod}
+                          onChange={(e) => setCustomCareMethod(e.target.value)}
+                          onPaste={(e) =>
+                            handleMacTextPaste(e, customCareMethod, setCustomCareMethod)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddCustomCareMethod();
                             }
-                            className="rounded text-indigo-600 focus:ring-indigo-500"
-                          />
-                          {m.label}
-                        </label>
+                          }}
+                          placeholder="Phương thức khác..."
+                          className="w-full min-w-0 bg-transparent outline-none text-xs text-slate-700 placeholder:text-slate-400"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={handleAddCustomCareMethod}
+                          className="shrink-0 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                        >
+                          Thêm
+                        </button>
+                      </div>
+
+                      {/* Các phương thức tự thêm */}
+                      {uniqueCustomCareMethods.map((method) => (
+                        <span
+                          key={method}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold whitespace-nowrap"
+                        >
+                          {method}
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomCareMethod(method)}
+                            className="text-indigo-400 hover:text-rose-500 text-sm leading-none"
+                            title="Xóa"
+                          >
+                            ×
+                          </button>
+                        </span>
                       ))}
                     </div>
                   </div>
+
                 </div>
               </div>
 

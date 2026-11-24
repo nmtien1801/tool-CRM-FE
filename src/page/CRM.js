@@ -127,6 +127,14 @@ export const CATEGORY_OPTIONS = [
   { value: "Agency", label: "Agency" },
 ];
 
+export const CARE_STATUS_OPTIONS = [
+  { value: "received", label: "Đã tiếp nhận" },
+  { value: "consulting", label: "Đang tư vấn" },
+  { value: "completed", label: "Đã hoàn thành" },
+  { value: "stage_transferred", label: "Chuyển giai đoạn" },
+  { value: "follow_up", label: "Follow up" },
+];
+
 export const EMPTY_CUSTOMER = {
   fullName: "",
   birthday: "",
