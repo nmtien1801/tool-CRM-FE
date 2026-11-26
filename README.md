@@ -14,5 +14,3 @@ npm run dev
 
 git tag v1.0.0
 git push origin v1.0.0
-
-npx sequelize-cli db:migrate --to migrate_purchase_history_statusCare.js

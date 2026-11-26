@@ -42,6 +42,11 @@ export const LABELS = [
     color: "bg-rose-50 text-rose-700 border-rose-300",
   },
   {
+    value: "Đã đặt lịch",
+    label: "Đã đặt lịch",
+    color: "bg-indigo-50 text-indigo-700 border-indigo-300",
+  },
+  {
     value: "Đã mua hàng",
     label: "Đã mua hàng",
     color: "bg-green-50 text-green-700 border-green-300",
@@ -66,8 +71,9 @@ export const ITEM_TYPE_OPTIONS = [
 
 // Nhóm 4 bổ sung: phương thức thanh toán
 export const PAYMENT_METHOD_OPTIONS = [
-  { value: "chuyen_khoan", label: "Chuyển Khoản" },
+  { value: "chuyen_khoan", label: "Chuyển khoản" },
   { value: "tien_mat", label: "Tiền mặt" },
+  { value: "ship_cod", label: "Ship cod" },
 ];
 
 // Nhóm 4 bổ sung: nguồn khách hàng
@@ -79,7 +85,8 @@ export const CUSTOMER_SOURCE_OPTIONS = [
   { value: "website", label: "Website" },
   { value: "partner", label: "Partner" },
   { value: "sale", label: "Sale" },
-  { value: "gioiThieu", label: "Giới thiệu" },
+  { value: "khách cũ", label: "Khách cũ" },
+  { value: "giới thiệu", label: "Giới thiệu" },
 ];
 
 export const CARE_METHODS = [
@@ -125,6 +132,7 @@ export const CATEGORY_OPTIONS = [
   { value: "Combo Podcast", label: "Combo Podcast" },
   { value: "Setup livestream", label: "Setup livestream" },
   { value: "Agency", label: "Agency" },
+  { value: "Digital Product", label: "Digital Product" },
 ];
 
 export const CARE_STATUS_OPTIONS = [
