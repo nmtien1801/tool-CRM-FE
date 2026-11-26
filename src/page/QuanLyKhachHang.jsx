@@ -207,6 +207,7 @@ export default function CRMSystem() {
         ads: crmFilterAds ? 'true' : '',
         transactionDateFrom,
         transactionDateTo,
+        rowType: 'transaction',
         page: currentPage,
         pageSize: pageSize,
         userRole: user?.role,
@@ -287,7 +288,7 @@ export default function CRMSystem() {
         else if (Array.isArray(result.customers)) list = result.customers;
         else if (Array.isArray(result)) list = result;
       }
-      setReferralOptionsList(list);
+      setReferralOptionsList([...new Map(list.map((customer) => [String(customer.id), customer])).values()]);
     } catch (err) {
       console.error('Lỗi tải danh sách khách hàng giới thiệu:', err);
     }
@@ -303,8 +304,11 @@ export default function CRMSystem() {
       if (!customers || customers.length === 0) return;
       const spentData = {};
       const historyData = {};
+      const uniqueCustomers = [
+        ...new Map(customers.map((customer) => [String(customer.id), customer])).values()
+      ];
       await Promise.all(
-        customers.map(async (cust) => {
+        uniqueCustomers.map(async (cust) => {
           try {
             const res = await ApiCustomer.getCustomerTotalSpent(cust.id);
             const dt = res?.DT || res?.data?.DT;
@@ -875,24 +879,24 @@ export default function CRMSystem() {
   const flatRows = [];
   const hasTransactionDateFilter = Boolean(transactionDateFrom || transactionDateTo);
   (Array.isArray(customers) ? customers : []).forEach((cust) => {
-    const histories = (historyMap[cust.id] || cust.purchaseHistories || []).filter((h) => {
-      if (!(h.date || h.products || h.invoiceLink)) return false;
+    const transaction = cust.purchaseHistory;
+    if (!transaction) return;
+    const history =
+      (historyMap[cust.id] || []).find((item) => String(item.id) === String(transaction.id)) ||
+      transaction;
+    if (crmFilterAds && !Boolean(history.ads)) return;
 
-      if (crmFilterAds && !Boolean(h.ads)) return false;
-
-      if (!hasTransactionDateFilter) return true;
-      const transactionDate = toISODate(h.date);
-      return (
-        transactionDate &&
-        (!transactionDateFrom || transactionDate >= transactionDateFrom) &&
-        (!transactionDateTo || transactionDate <= transactionDateTo)
-      );
-    });
-    if (histories.length === 0) {
-      if (!hasTransactionDateFilter && !crmFilterAds) flatRows.push({ cust, history: null });
-      return;
+    if (hasTransactionDateFilter) {
+      const transactionDate = toISODate(history.date);
+      if (
+        !transactionDate ||
+        (transactionDateFrom && transactionDate < transactionDateFrom) ||
+        (transactionDateTo && transactionDate > transactionDateTo)
+      ) {
+        return;
+      }
     }
-    histories.forEach((h) => flatRows.push({ cust, history: h }));
+    flatRows.push({ cust, history });
   });
 
   if (!user || !hasAccess) {
@@ -1782,7 +1786,9 @@ export default function CRMSystem() {
                         key={`${cust.id}-${h?.id ?? 'empty'}-${index}`}
                         className="hover:bg-slate-50/60 transition-colors align-top"
                       >
-                        <td className="px-4 py-4 font-semibold text-slate-400 text-center">{index + 1}</td>
+                        <td className="px-4 py-4 font-semibold text-slate-400 text-center">
+                          {(currentPage - 1) * pageSize + index + 1}
+                        </td>
                         <td className="px-4 py-4 text-start font-mono text-slate-700 text-[11px]">{cust.id}</td>
                         <td className="px-3 py-3 space-y-1">
                           <span className="font-bold text-slate-900 text-sm block">{cust.fullName}</span>
@@ -2186,7 +2192,7 @@ export default function CRMSystem() {
                   {flatRows.length === 0 && !isLoading && (
                     <tr>
                       <td colSpan="27" className="text-center py-8 text-slate-400 italic">
-                        Không tìm thấy khách hàng nào khớp với bộ lọc.
+                        Không tìm thấy giao dịch nào khớp với bộ lọc.
                       </td>
                     </tr>
                   )}

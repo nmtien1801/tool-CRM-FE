@@ -18,7 +18,7 @@ export default function Pagination({
       <div className="text-xs font-medium text-slate-500">
         Hiển thị từ <span className="font-semibold text-slate-700">{fromItem}</span> đến{' '}
         <span className="font-semibold text-slate-700">{toItem}</span> trong tổng số{' '}
-        <span className="font-semibold text-slate-700">{totalItems}</span> khách hàng
+        <span className="font-semibold text-slate-700">{totalItems}</span> giao dịch
       </div>
 
       {/* Khối các nút chuyển trang */}
